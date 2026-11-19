@@ -97,6 +97,16 @@ Listed seven mini-game options (Pack Fit, Climb High Sleep Low, Contour Map Rout
 
 > yeah, lets do it like that
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 44,193 output, 52,305 new input, 3,028,471 cached input, over 10 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 46,997 output, 55,311 new input, 4,018,272 cached input, over 13 model calls.
 
 Searched the web for the real Everest Base Camp stages (heights, distances) and for the altitude guidance (Wilderness Medical Society and CDC: about 500 m a night above 3,000 m, a rest day every 3-4 days, an extra night per 1,000 m gained). Rebuilt the game as a hub of mini-games where the first one is playable: choose where to sleep each night on the real route, with a daily walking limit, the altitude rules and full lodges. A solver (`tools/gen.js`) keeps only stages with one to three valid plans. Wrong plans say what would go wrong on the real trail, and each solved stage gives a ranger tip, a fun fact and a real photo with its credit. The other three mini-games show as "coming soon". Played every valid plan of all six stages through the real tap handler (all win), checked that a rule-breaking plan is flagged, and looked at screenshots. The village heights and distances are rounded from published itineraries and the walking time is a simple estimate, which the game says. Not play-tested by hand. Replaced the Meowdoku-style game (still in the git history). Commit `77a8699` (the log itself is in the next commit).
+
+## 11. It doesn't look like a real game
+
+> nope, its still not what I wanted. It doest look like a real game
+
+Answers to the questions I asked about the look: "the problem is that its too complex and not fun at all, it should be easier to play, fun, obvious, but challenging you know"; art style: cute pastel cartoon; controls: place tents, then watch the hike.
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 45,211 output, 49,215 new input, 3,221,428 cached input, over 9 model calls (measured before the turn finished, so slightly low).
+
+The previous screen was a table and a grid of squares with four rules at once. Rebuilt everything you see in a cute pastel cartoon style: a scrollable mountain trail drawn in SVG with villages as little houses, a bear hiker, tent cards and a big Start hike button, with the stages as a winding map of round buttons. You tap a village to put up each night's tent, press Start hike, and watch the bear walk the plan: night falls on the trail, the lodge is full, or the bear turns green and dizzy. The generator now gives each stage only the rules introduced so far (daylight, then the 500 m climb, then rest days), so stage 1 has one rule, and every stage still has one or two valid plans. Played every valid plan of all six stages through the real tap handlers and hike animation (all win), checked that too-far and too-fast plans fail for the right reason, and looked at screenshots of the hub, stage map, a plan and a failed hike. Not play-tested by hand, and the sounds and animations are untested by ear and eye outside headless Chrome. Commit `c2b8756` (the log itself is in the next commit).

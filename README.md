@@ -4,6 +4,8 @@
 
 This project is part of the EDU T564A class, Week 5: build something that invites play.
 
+**Play it:** https://t564-projects.github.io/w5-invites-play/
+
 ## How it works
 
 - **Microgames:** 14 quick games, each a different action (drag, tap, hold, rhythm, dodge, pick one, scrub). Examples: hang the food from the bear, treat the water, dress for the rain, turn around on time, get to the uphill side when yaks pass, go "pole pole" (slowly) on Kilimanjaro, dodge lightning on the ridge, crouch in a Patagonian gust.
@@ -14,7 +16,7 @@ This project is part of the EDU T564A class, Week 5: build something that invite
 
 ## Run it
 
-Open `index.html` in a browser. No server or build step is needed. It works on a phone browser too.
+Open the link above, or open `index.html` locally (or run `python3 -m http.server 8000` and visit http://localhost:8000). No build step is needed. It works on a phone browser too.
 
 ## Files
 

@@ -139,3 +139,13 @@ Gave every microgame a one-line "how to" (for example "Drag the backpack up onto
 Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 3,530 output, 3,489 new input, 984,191 cached input, over 2 model calls (measured before the turn finished, so slightly low).
 
 Found the bug: the three trails sat inside a container that ignores taps, and children inherit that, so real taps passed straight through them. My test had missed it because it triggered the trails directly instead of tapping where a finger would land. Fixed the trails so they accept taps, and changed the tests to tap the centre of the target through the page (hit-testing). Showed the new test fails on the old code and passes on the fix; the other pick-one games (water, jacket, turnaround) pass the same check. The local server serves the files live, so a browser refresh picks it up. Commit `94987b5`. Not pushed.
+
+## 15. Publish it
+
+> can you publish in github or railway for me?
+>
+> (my answer to your question) GitHub Pages (make repo public)
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 5,188 output, 5,924 new input, 3,998,164 cached input, over 8 model calls (measured before the turn finished, so slightly low).
+
+Pushed the two pending commits, then checked the options. GitHub Pages needs a public repo on the free plan, and the repo was private; Railway's CLI was installed but not logged in, and the browser login can't be done for you. Asked which to use and you chose GitHub Pages. Before making the repo public I scanned every tracked file for emails, keys and local paths (none), then made `t564-projects/w5-invites-play` public and turned on Pages from `main`. The site is live at https://t564-projects.github.io/w5-invites-play/; I checked that every script, stylesheet and a photo load (all 200) and that the page renders in headless Chrome. Added the link to the README.

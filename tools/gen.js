@@ -23,9 +23,9 @@ function check(route, L, nights) {
     if (h > L.maxHours + 1e-9) probs.push({ day: i, kind: 'hours', h });
     if (L.full.some(([v, n]) => v === to && n === i + 1)) probs.push({ day: i, kind: 'full' });
     const g = effGain(prevAlt, nodes[to].alt);
-    if (g > RULES.maxGain) probs.push({ day: i, kind: 'gain', g });
+    if (L.rules.includes('gain') && g > RULES.maxGain) probs.push({ day: i, kind: 'gain', g });
     if (nodes[to].alt > RULES.base && nodes[to].alt > prevAlt) streak++; else streak = 0;
-    if (streak > RULES.maxGainingNights) probs.push({ day: i, kind: 'rest' });
+    if (L.rules.includes('rest') && streak > RULES.maxGainingNights) probs.push({ day: i, kind: 'rest' });
     if (last && to === from) probs.push({ day: i, kind: 'noprogress' });
     prevAlt = nodes[to].alt; from = to;
   });
@@ -46,18 +46,18 @@ const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 42949672
 
 const route = ROUTES.ebc, idx = id => route.nodes.findIndex(n => n.id === id);
 const SPECS = [
-  { title: 'Lukla to Namche Bazaar', start: 'lukla', end: 'namche', max: 1 },
-  { title: 'Namche Bazaar to Dingboche', start: 'namche', end: 'dingboche', max: 2 },
-  { title: 'Lukla to Dingboche', start: 'lukla', end: 'dingboche', max: 3 },
-  { title: 'Dingboche to Gorak Shep', start: 'dingboche', end: 'gorak', max: 2 },
-  { title: 'Lukla to Lobuche', start: 'lukla', end: 'lobuche', max: 3 },
-  { title: 'Lukla to Everest Base Camp', start: 'lukla', end: 'ebc', max: 3 }
+  { title: 'Lukla to Namche Bazaar', start: 'lukla', end: 'namche', rules: ['hours'], max: 2, days: [2, 2] },
+  { title: 'Namche Bazaar to Dingboche', start: 'namche', end: 'dingboche', rules: ['hours', 'gain'], max: 2, days: [3, 4] },
+  { title: 'Lukla to Dingboche', start: 'lukla', end: 'dingboche', rules: ['hours', 'gain'], max: 3, days: [4, 6] },
+  { title: 'Dingboche to Gorak Shep', start: 'dingboche', end: 'gorak', rules: ['hours', 'gain', 'rest'], max: 2, days: [3, 4] },
+  { title: 'Lukla to Lobuche', start: 'lukla', end: 'lobuche', rules: ['hours', 'gain', 'rest'], max: 3, days: [6, 8] },
+  { title: 'Lukla to Everest Base Camp', start: 'lukla', end: 'ebc', rules: ['hours', 'gain', 'rest'], max: 3, days: [7, 9] }
 ];
 const out = [];
 SPECS.forEach((sp, li) => {
   const start = idx(sp.start), end = idx(sp.end); let best = null;
   for (let t = 0; t < 20000 && !best; t++) {
-    const base = { start, end, days: 2 + Math.floor(rnd() * 10), maxHours: [5.5, 6, 6.5, 7][Math.floor(rnd() * 4)], full: [] };
+    const base = { start, end, days: sp.days[0] + Math.floor(rnd() * (sp.days[1] - sp.days[0] + 1)), rules: sp.rules, maxHours: [5.5, 6, 6.5, 7][Math.floor(rnd() * 4)], full: [] };
     const nfull = Math.floor(rnd() * 4);
     for (let k = 0; k < nfull; k++) { const f = [start + 1 + Math.floor(rnd() * (end - start)), 1 + Math.floor(rnd() * base.days)]; if (!base.full.some(g => g[0] === f[0] && g[1] === f[1])) base.full.push(f); }
     if (base.days - 1 < 1) continue;
@@ -77,7 +77,7 @@ SPECS.forEach((sp, li) => {
     if (again.length === best.sols.length) { best.full = trial.full; }
   }
   console.log(String(li + 1).padStart(2), sp.title.padEnd(40), '| days', best.days, '| max h', best.maxHours, '| full', JSON.stringify(best.full.map(([v, n]) => route.nodes[v].name + '@' + n)), '| solutions', best.sols.length);
-  out.push({ trek: 'ebc', title: sp.title, start: sp.start, end: sp.end, days: best.days, maxHours: best.maxHours,
+  out.push({ trek: 'ebc', title: sp.title, start: sp.start, end: sp.end, days: best.days, rules: sp.rules, maxHours: best.maxHours,
     full: best.full.map(([v, n]) => [route.nodes[v].id, n]), solutions: best.sols.map(s => s.map(v => route.nodes[v].id)) });
 });
 fs.writeFileSync(path.join(__dirname, '..', 'levels.js'),

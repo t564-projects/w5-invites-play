@@ -6,7 +6,7 @@ This project is part of the EDU T564A class, Week 5: build something that invite
 
 ## Mini-games
 
-- ⛰️ **Climb High, Sleep Low** (playable): plan the nights of the Everest Base Camp trek without getting altitude sickness. Choose where to sleep each night, using the real villages, heights and distances. The rules come from Wilderness Medical Society and CDC guidance: above 3,000 m, raise your sleeping altitude by no more than about 500 m a night, take a rest day every 3–4 days, and keep each day's walk within a limit. Some lodges are full on some nights. Every stage has only one to three valid plans, so you have to reason it out. Each day tells you what would go wrong on the real trail, and each solved stage gives a ranger tip, a fun fact and a photo.
+- ⛰️ **Climb High, Sleep Low** (playable): plan the nights of the Everest Base Camp trek, then watch a little bear hike it. Tap a village to put up a tent for each night, press **Start hike**, and see what happens: night falls on the trail, the lodge is full, or the bear gets dizzy from sleeping too high too fast. Each of the six stages adds one new rule: daylight hours, then the 500 m-a-night climb limit (Wilderness Medical Society and CDC guidance), then rest days. Every stage has only one or two valid plans. Each solved stage gives a ranger tip, a fun fact and a real photo.
 - 🎒 **Pack Fit** (coming soon): fit gear into the pack with needs, limits and things that can't touch.
 - 🗺️ **Contour Route** (coming soon): read the contour lines and find the safe way up.
 - 🔤 **Trail Words** (coming soon): find hiking words and learn what they mean.
@@ -17,11 +17,11 @@ Open `index.html` in a browser. No server or build step is needed. It works on a
 
 ## Files
 
-- `index.html`, `style.css`, `game.js`: the game.
+- `index.html`, `style.css`, `game.js`: the game (cute pastel cartoon style, with the scene drawn as SVG).
 - `data.js`: the real routes (villages, heights, distances, facts), the treks and the gear data for the next mini-game.
 - `levels.js`: the stages. Generated, don't edit by hand.
 - `tools/gen.js`: makes `levels.js`. It tries combinations of days, daily walking limit and full lodges, counts the valid itineraries with a solver, and keeps stages with only a few answers.
-- `tools/test.html`: open it in a browser (or headless Chrome) to play every valid itinerary of every stage through the real game logic.
+- `tools/test.html`: open it in a browser (or headless Chrome) to play every valid plan of every stage through the real tap handlers and hike animation, and check that bad plans fail for the right reason.
 - `photos/` and `credits.js`: trek photos with their credits.
 
 ## Data, photos and facts

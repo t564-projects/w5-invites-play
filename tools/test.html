@@ -1,21 +1,26 @@
 <!doctype html><meta charset="utf-8"><body><pre id="out">running</pre>
-<div id="bg"></div><div id="app"></div><div id="layer"></div>
+<div id="sky"></div><div id="app"></div><div id="layer"></div>
 <script src="../data.js"></script><script src="../levels.js"></script><script src="../credits.js"></script>
-<script>history.replaceState(null,'','?seen&unlock');</script>
+<script>history.replaceState(null,'','?seen&unlock'); window.__instant = true;</script>
 <script src="../game.js"></script>
 <script>
-// Plays every valid itinerary of every level through the real tap handler and checks each one wins,
-// then checks that a plan with a rule break does not win and explains why.
-const res = [];
-save.mute = true; save.seen = true;
-LEVELS.forEach((L, i) => {
-  let wins = 0;
-  L.solutions.forEach(sol => { startLevel(i); sol.forEach((id, n) => pick(n, idxOf(id))); if (won) wins++; });
-  res.push({ level: i + 1, solutions: L.solutions.length, won: wins });
-});
-// level 6: sleeping in Namche then straight to Dingboche on a short plan must be flagged
-startLevel(5); const N = nodes();
-pick(0, idxOf('phakding')); pick(1, idxOf('namche')); pick(2, idxOf('dingboche')); pick(3, idxOf('lobuche'));
-res.push({ rule_break_flagged: analyse().some(d => d.probs.length) && !won, kinds: analyse().flatMap(d => d.probs.map(p => p.kind)) });
-document.getElementById('out').textContent = JSON.stringify(res);
+// Plays every valid plan of every stage through the real tap handlers and the real hike, and checks each one wins.
+// Then checks that bad plans fail for the right reason.
+(async () => {
+  const res = []; save.mute = true; save.seen = true;
+  for (let i = 0; i < LEVELS.length; i++) {
+    const L = LEVELS[i]; let wins = 0;
+    for (const sol of L.solutions) {
+      startLevel(i); sol.forEach(id => tapVillage(idxOf(id)));
+      await startHike(); await new Promise(r => setTimeout(r, 30));
+      if (phase === 'won') wins++;
+    }
+    res.push({ level: i + 1, solutions: L.solutions.length, won: wins });
+  }
+  // wrong plans on the last stage: too far in a day / too high too fast
+  const bad = async (ids) => { startLevel(5); ids.forEach(id => tapVillage(idxOf(id))); await startHike(); await new Promise(r => setTimeout(r, 30)); return { phase, msg: document.querySelector('#bub .tx').textContent.slice(0, 50) }; };
+  res.push({ too_far: await bad(['lukla', 'lukla', 'lukla', 'lukla', 'lukla', 'lukla', 'lukla']) });
+  res.push({ too_fast: await bad(['phakding', 'namche', 'dingboche', 'lobuche', 'gorak', 'gorak', 'gorak']) });
+  document.getElementById('out').textContent = JSON.stringify(res);
+})();
 </script>

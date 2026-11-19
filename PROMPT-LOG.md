@@ -67,6 +67,36 @@ The dashed highlight showed every legal spot for the picked item, and the jammed
 
 Answers to the questions I asked after looking the game up: "cant we have meowdoku rules adapted to the hike back rules (in matter of size, where, what can touch what, etc)"; backpack pockets and gear as the theme; features: ✕ marking and notes, timer and best times, real trek photos and facts as rewards (no lives).
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 49,936 output, 57,956 new input, 3,829,414 cached input, over 16 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 51,760 output, 60,995 new input, 4,367,831 cached input, over 18 model calls.
 
 I had misunderstood Meowdoku: I had built a packing puzzle. Searched the web and found the real rules: coloured regions, one cat per region, row and column, no touching even diagonally, one solution reached by logic. Rebuilt the game on that: the backpack is an N×N grid of coloured pockets, each pocket holds one specific gear item, one per pocket, row and column, incompatible gear can't touch even diagonally, and heavy gear goes low and light gear high. The grid grows with the trek (5×5 to 8×8). The level generator (`tools/gen.js`) keeps only puzzles with exactly one solution that a logic-only solver can reach, and tags each with a difficulty tier. Features: tap to ✕ or place, timer with best times, hints (+30 s), an auto-✕ assist, and the trek photos, facts and credits on the win screen. Replayed all 14 solutions through the real tap handler (all win) and checked that a wrong move is flagged red and does not win. Screenshots of the 6×6 and 8×8 boards found and fixed an overflow bug. Not play-tested by hand, so the difficulty is untested. Commit `ad2d8be` (the log itself is in the next commit).
+
+## 8. Not fun for hikers: ask what to build
+
+> it still kind of sucks, I wanted something more fun for the hike stuff, something that would keep the sort of thinking kind of game that I like, but that hikers would actually enjoy cause it sort of relates / teaches them you kno
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 2,849 output, 890 new input, 271,278 cached input, over 1 model call.
+
+Agreed the hiking had only been decoration. Proposed four puzzles built around real decisions (itinerary planning, camp setup, pack vs forecast, topo-map route) and started to ask which to pick, but you interrupted before answering. No commit.
+
+## 9. A set of little hike puzzles
+
+> what if we have sort of little hike puzzles?
+> - like the packing would be a puzzle like those ones that you need to fit people in a boat but they have constraints, you know? So like you need to fix X, Y and Z, but x cant go side by side with Z, needs at least 3 Y but if you have too much Y you cant fit Z and so on
+> - then you can have something around the itinerary acclimatization
+> - then you can have something around the map and so on
+> - maybe something around find words related to hikes in a word puzzle
+> - like a mario party you know? And then you see photos and fun facts
+> gimme some options
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 2,151 output, 3,204 new input, 272,164 cached input, over 1 model call.
+
+Listed seven mini-game options (Pack Fit, Climb High Sleep Low, Contour Map Route, Trail Words, River Crossing, Camp Setup, Layer Up), how they could fit together like Mario Party with a photo and fact after each, and suggested starting with four and building one first so you can play it before I build the rest. No commit.
+
+## 10. Build the first mini-game: Climb High, Sleep Low
+
+> yeah, lets do it like that
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 44,193 output, 52,305 new input, 3,028,471 cached input, over 10 model calls (measured before the turn finished, so slightly low).
+
+Searched the web for the real Everest Base Camp stages (heights, distances) and for the altitude guidance (Wilderness Medical Society and CDC: about 500 m a night above 3,000 m, a rest day every 3-4 days, an extra night per 1,000 m gained). Rebuilt the game as a hub of mini-games where the first one is playable: choose where to sleep each night on the real route, with a daily walking limit, the altitude rules and full lodges. A solver (`tools/gen.js`) keeps only stages with one to three valid plans. Wrong plans say what would go wrong on the real trail, and each solved stage gives a ranger tip, a fun fact and a real photo with its credit. The other three mini-games show as "coming soon". Played every valid plan of all six stages through the real tap handler (all win), checked that a rule-breaking plan is flagged, and looked at screenshots. The village heights and distances are rounded from published itineraries and the walking time is a simple estimate, which the game says. Not play-tested by hand. Replaced the Meowdoku-style game (still in the git history). Commit `77a8699` (the log itself is in the next commit).

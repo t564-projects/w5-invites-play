@@ -10,6 +10,8 @@
 const MICRO = {};
 const def = (id, o) => { MICRO[id] = Object.assign({ id }, o); };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+/* tests: tap an element the way a finger would (whatever is actually under its centre receives the tap) */
+function fingerTap(el) { const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); if (hit) hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); }
 const slow = (speed, k = .5) => 1 + (speed - 1) * k; // dampened speed-up for things that would become impossible
 
 /* ---------- pick one (water, jacket, turnaround) ---------- */
@@ -32,7 +34,7 @@ function pickGame(scene, options) {
       if (s.y < area.y0 || s.y > area.y1) { s.vy = -s.vy; s.y = clamp(s.y, area.y0, area.y1); }
       s.b.style.left = s.x + 'px'; s.b.style.top = s.y + 'px';
     }));
-    return { solve() { btns.find(s => s.o.ok).b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); } };
+    return { solve() { fingerTap(btns.find(s => s.o.ok).b); } };
   };
 }
 
@@ -120,14 +122,14 @@ def('lost', { title: 'Follow the trail markers!', how: 'Tap the trail that has t
       holder.innerHTML = ''; const cols = COL.slice().sort(() => Math.random() - .5).slice(0, 3); goal = cols[Math.floor(Math.random() * 3)];
       label.innerHTML = `Follow ${goal[0]} <span style="font-size:14px">(${fork + 1}/${total})</span>`;
       cols.forEach((col, i) => { const x = 20 + i * 112, p = document.createElement('div');
-        p.style.cssText = `position:absolute;left:${x}px;top:70px;width:100px;height:230px;border-radius:50px 50px 0 0;background:linear-gradient(#e9d6a8,#cdb27c);box-shadow:0 5px 0 rgba(0,0,0,.18);display:flex;flex-direction:column;align-items:center;padding-top:20px;gap:10px;font-size:34px;cursor:pointer;touch-action:none`;
+        p.style.cssText = `position:absolute;left:${x}px;top:70px;width:100px;height:230px;border-radius:50px 50px 0 0;background:linear-gradient(#e9d6a8,#cdb27c);box-shadow:0 5px 0 rgba(0,0,0,.18);display:flex;flex-direction:column;align-items:center;padding-top:20px;gap:10px;font-size:34px;cursor:pointer;touch-action:none;pointer-events:auto`;
         p.innerHTML = `<span style="font-size:22px">⬆️</span><span>${col[0]}</span><span style="opacity:.8;font-size:28px">🌲</span>`;
         p.dataset.good = col === goal ? '1' : '';
         p.addEventListener('pointerdown', e => { e.stopPropagation(); choose(p.dataset.good === '1'); }); holder.appendChild(p); });
     };
     const choose = ok => { if (!ok) return c.lose('wrong'); fork++; if (fork >= total) return c.win(); draw(); };
     draw();
-    return { solve() { for (let i = 0; i < total; i++) holder.querySelector('[data-good="1"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); } };
+    return { solve() { for (let i = 0; i < total; i++) fingerTap(holder.querySelector('[data-good="1"]')); } };
   } });
 
 /* ---------- sunscreen (scrub) ---------- */

@@ -1,39 +1,29 @@
-/* Trail Pack: static data (items, backpack layout, rules, treks). Works in the browser and in Node. */
+/* Trail Pack: static data (gear, rules, treks). Works in the browser and in Node. */
 const DATA = {
-  // Backpack grid, row by row. Each cell belongs to a pocket.
-  ZONES: [
-    ['lid', 'lid', 'lid', 'lid'],
-    ['left', 'main', 'main', 'right'],
-    ['left', 'main', 'main', 'right'],
-    ['left', 'main', 'main', 'right'],
-    ['bottom', 'bottom', 'bottom', 'bottom']
-  ],
-  ZONE_NAMES: { lid: 'Lid pocket', left: 'Left pocket', main: 'Main compartment', right: 'Right pocket', bottom: 'Bottom compartment' },
-
-  // size: number of cells (2-cell items can be rotated). weight: H heavy, M medium, L light.
+  // weight: H heavy (lower rows), L light (upper rows), M medium (anywhere).
   ITEMS: {
-    water:  { e: '💧', name: 'Water bottle',  size: 1, weight: 'H', zones: ['left', 'right', 'main'],                tags: ['wet'],               color: '#7cc3ee' },
-    food:   { e: '🥜', name: 'Food bag',      size: 1, weight: 'H', zones: ['main', 'bottom'],                        tags: ['food'],              color: '#f2b36b' },
-    stove:  { e: '🔥', name: 'Stove + fuel',  size: 1, weight: 'H', zones: ['main', 'left', 'right'],                 tags: ['hot', 'smelly'],     color: '#ef8a5a' },
-    tent:   { e: '⛺', name: 'Tent',          size: 2, weight: 'H', zones: ['main', 'bottom'],                        tags: [],                    color: '#7fd1a0' },
-    bag:    { e: '🛌', name: 'Sleeping bag',  size: 2, weight: 'M', zones: ['bottom'],                                tags: ['soft', 'down'],      color: '#b895ee' },
-    jacket: { e: '🧥', name: 'Down jacket',   size: 1, weight: 'M', zones: ['lid', 'main', 'bottom', 'left', 'right'], tags: ['soft', 'down'],      color: '#e77f7a' },
-    rain:   { e: '☔', name: 'Rain jacket',   size: 1, weight: 'M', zones: ['lid', 'left', 'right', 'main'],          tags: ['wet'],               color: '#8c9cf0' },
-    boots:  { e: '🥾', name: 'Wet boots',     size: 1, weight: 'M', zones: ['bottom', 'left', 'right'],               tags: ['wet', 'smelly'],     color: '#b9936a' },
-    axe:    { e: '⛏️', name: 'Ice axe',       size: 1, weight: 'M', zones: ['left', 'right'],                         tags: ['sharp'],             color: '#7fe0dc' },
-    camera: { e: '📷', name: 'Camera',        size: 1, weight: 'L', zones: ['lid'],                                   tags: ['electronic'],        color: '#a8b3c2' },
-    lamp:   { e: '🔦', name: 'Headlamp',      size: 1, weight: 'L', zones: ['lid', 'left', 'right'],                  tags: ['electronic'],        color: '#f0d56a' },
-    med:    { e: '🩹', name: 'First aid',     size: 1, weight: 'L', zones: ['lid', 'left', 'right'],                  tags: ['soft'],              color: '#f19bc0' },
-    bug:    { e: '🦟', name: 'Bug spray',     size: 1, weight: 'L', zones: ['lid', 'left', 'right'],                  tags: ['smelly'],            color: '#b3c47a' },
-    sun:    { e: '🧴', name: 'Sun cream',     size: 1, weight: 'L', zones: ['lid', 'left', 'right'],                  tags: [],                    color: '#f6dc7a' }
+    water:  { e: '💧', name: 'Water',        weight: 'H', tags: ['wet'],            color: '#7cc3ee' },
+    food:   { e: '🥜', name: 'Food',         weight: 'H', tags: ['food'],           color: '#f2b36b' },
+    stove:  { e: '🔥', name: 'Stove',        weight: 'H', tags: ['hot', 'smelly'],  color: '#ef8a5a' },
+    tent:   { e: '⛺', name: 'Tent',         weight: 'H', tags: [],                 color: '#7fd1a0' },
+    bag:    { e: '🛌', name: 'Sleeping bag', weight: 'M', tags: ['soft', 'down'],   color: '#b895ee' },
+    jacket: { e: '🧥', name: 'Down jacket',  weight: 'M', tags: ['soft', 'down'],   color: '#e77f7a' },
+    rain:   { e: '☔', name: 'Rain jacket',  weight: 'M', tags: ['wet'],            color: '#8c9cf0' },
+    boots:  { e: '🥾', name: 'Wet boots',    weight: 'M', tags: ['wet', 'smelly'],  color: '#b9936a' },
+    axe:    { e: '⛏️', name: 'Ice axe',      weight: 'M', tags: ['sharp'],          color: '#7fe0dc' },
+    camera: { e: '📷', name: 'Camera',       weight: 'L', tags: ['electronic'],     color: '#a8b3c2' },
+    lamp:   { e: '🔦', name: 'Headlamp',     weight: 'L', tags: ['electronic'],     color: '#f0d56a' },
+    med:    { e: '🩹', name: 'First aid',    weight: 'L', tags: ['soft'],           color: '#f19bc0' },
+    bug:    { e: '🦟', name: 'Bug spray',    weight: 'L', tags: ['smelly'],         color: '#b3c47a' },
+    sun:    { e: '🧴', name: 'Sun cream',    weight: 'L', tags: [],                 color: '#f6dc7a' }
   },
 
-  // Rules. 'weight' is about rows; the others are about neighbours (cells that share an edge).
+  // Rules shown to the player. The touch rule lists the exact pairs for each level.
   RULES: {
-    weight: { icon: '⚖️', title: 'Heavy low, light high', text: 'Heavy items sit in the bottom three rows. Light items stay out of the bottom two rows.' },
-    food:   { icon: '🐻', title: 'Food stays clean',      text: 'Food can’t touch smelly things (bug spray, stove fuel, wet boots).' },
-    wet:    { icon: '💦', title: 'Keep it dry',           text: 'Wet things (water, rain jacket, wet boots) can’t touch electronics or down (camera, headlamp, sleeping bag, down jacket).' },
-    sharp:  { icon: '🔪', title: 'Sharp & hot vs soft',   text: 'The ice axe and stove can’t touch soft things (sleeping bag, jackets, first aid).' }
+    pocket: { icon: '🎒', title: 'One per pocket',    text: 'Each coloured pocket holds exactly one gear item. The tags below say which item goes in which colour.' },
+    line:   { icon: '🧭', title: 'Balanced pack',     text: 'Every row and every column has exactly one item, so the weight is spread evenly.' },
+    touch:  { icon: '💥', title: 'Keep apart',        text: 'Gear that doesn\u2019t get along can\u2019t touch, even diagonally: food vs smelly things, wet vs electronics and down, sharp or hot vs soft. Other gear can touch.' },
+    weight: { icon: '⚖️', title: 'Heavy low, light high', text: 'Heavy gear (▼) sits in the bottom half of the pack. Light gear (▲) sits in the top half. Medium gear can go anywhere. The middle row works for both.' }
   },
 
   // Real treks. Photos are free-licensed images from Wikimedia Commons (credits in photos/credits.json).

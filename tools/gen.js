@@ -1,128 +1,178 @@
-// Generates levels.js, Meowdoku style: each level is a pack with a few items already
-// locked in place (clues). The solver picks the fewest clues that leave a small number
-// of valid solutions, so the rest has to be worked out from the rules.
+// Generates levels.js: Meowdoku-style puzzles on a backpack.
+// Each level is an N x N pack split into N coloured pockets. Each pocket holds one specific gear item.
+// Rules: one item per pocket, row and column; incompatible gear can't touch (even diagonally);
+// heavy gear in the lower half, light gear in the upper half.
+// Every kept puzzle has exactly ONE solution and can be solved by logic alone (no guessing).
 // Run: node tools/gen.js
 const fs = require('fs'), path = require('path');
-const D = require('../data.js');
-const { ZONES, ITEMS } = D, R = ZONES.length, C = ZONES[0].length;
+const { ITEMS } = require('../data.js');
 
-// ----- rules (must match game.js) -----
 const has = (id, t) => ITEMS[id].tags.includes(t);
-function conflict(a, b, rules) {
-  const pair = (x, y) => (
-    (rules.includes('food') && has(x, 'food') && has(y, 'smelly')) ||
-    (rules.includes('wet') && has(x, 'wet') && (has(y, 'electronic') || has(y, 'down'))) ||
-    (rules.includes('sharp') && (has(x, 'sharp') || has(x, 'hot')) && has(y, 'soft')));
-  return pair(a, b) || pair(b, a);
-}
-function rowOk(id, r, rules) {
-  if (!rules.includes('weight')) return true;
-  const w = ITEMS[id].weight;
-  return w === 'H' ? r >= 2 : w === 'L' ? r <= 2 : true;
-}
-function placements(id, blocked, rules) {
-  const it = ITEMS[id], out = [];
-  const shapes = it.size === 1 ? [[[0, 0]]] : [[[0, 0], [0, 1]], [[0, 0], [1, 0]]];
-  for (const sh of shapes) for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
-    const cells = sh.map(([dr, dc]) => [r + dr, c + dc]);
-    if (cells.every(([rr, cc]) => rr < R && cc < C && !blocked.has(rr * C + cc) && it.zones.includes(ZONES[rr][cc]) && rowOk(id, rr, rules))) out.push(cells);
-  }
-  return out;
-}
+const one = (x, y) => (has(x, 'food') && has(y, 'smelly')) || (has(x, 'wet') && (has(y, 'electronic') || has(y, 'down'))) || ((has(x, 'sharp') || has(x, 'hot')) && has(y, 'soft'));
+const incompat = (a, b) => one(a, b) || one(b, a);
+const weightOk = (id, r, N) => { const mid = Math.floor(N / 2), w = ITEMS[id].weight; return w === 'H' ? r >= mid : w === 'L' ? r <= mid : true; };
 
-let seed = 987654;
+let seed = 20261119;
 const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-// ----- solver: counts solutions up to cap; `fixed` items are already placed -----
-function solve(manifest, blocked, rules, cap, fixed = [], randomize = false) {
-  const m = { ...manifest }; fixed.forEach(f => m[f.id]--);
-  const list = [];
-  for (const id of Object.keys(m)) for (let k = 0; k < m[id]; k++) list.push({ id, k });
-  const pl = list.map(p => { const a = placements(p.id, blocked, rules); return randomize ? shuffle(a) : a; });
-  if (pl.some(p => !p.length)) return { count: 0 };
-  const order = list.map((_, i) => i).sort((a, b) => pl[a].length - pl[b].length);
-  const grid = Array(R * C).fill(null);
-  fixed.forEach((f, fi) => f.cells.forEach(([r, c]) => grid[r * C + c] = { id: f.id, i: -1 - fi }));
-  let count = 0, first = null, nodes = 0;
-  const lastIdx = {};
-  function rec(n) {
-    if (count >= cap || nodes > 600000) return;
-    if (n === order.length) { count++; if (!first) first = grid.slice(); return; }
-    const i = order[n], id = list[i].id;
-    for (let pi = 0; pi < pl[i].length; pi++) {
-      nodes++;
-      const prev = id + ':' + (list[i].k - 1);
-      if (list[i].k > 0 && lastIdx[prev] !== undefined && pi <= lastIdx[prev]) continue; // identical copies: no permutations
-      const cells = pl[i][pi];
-      if (cells.some(([r, c]) => grid[r * C + c] !== null)) continue;
-      let ok = true;
-      for (const [r, c] of cells) for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const rr = r + dr, cc = c + dc;
-        if (rr < 0 || cc < 0 || rr >= R || cc >= C) continue;
-        const o = grid[rr * C + cc];
-        if (o && o.i !== i && conflict(id, o.id, rules)) ok = false;
-      }
-      if (!ok) continue;
-      cells.forEach(([r, c]) => grid[r * C + c] = { id, i });
-      lastIdx[id + ':' + list[i].k] = pi;
-      rec(n + 1);
-      delete lastIdx[id + ':' + list[i].k];
-      cells.forEach(([r, c]) => grid[r * C + c] = null);
-    }
-  }
-  rec(0);
-  return { count, first, truncated: nodes > 600000 };
+// ---- puzzle = { N, items[k] (gear id of pocket k), region[cell] -> pocket, weight:boolean } ----
+function domains(P) {
+  const { N, items, region, weight } = P, d = items.map(() => []);
+  for (let x = 0; x < N * N; x++) { const k = region[x]; if (!weight || weightOk(items[k], Math.floor(x / N), N)) d[k].push(x); }
+  return d;
 }
-function itemsOf(grid) {
-  const g = {};
-  grid.forEach((c, i) => { if (c) (g[c.i] = g[c.i] || { id: c.id, cells: [] }).cells.push([Math.floor(i / C), i % C]); });
-  return Object.values(g);
+const compat = (P, a, x, b, y) => {
+  const N = P.N, rx = Math.floor(x / N), cx = x % N, ry = Math.floor(y / N), cy = y % N;
+  if (rx === ry || cx === cy) return false;
+  if (Math.abs(rx - ry) === 1 && Math.abs(cx - cy) === 1 && incompat(P.items[a], P.items[b])) return false;
+  return true;
+};
+
+// count solutions (up to cap) by search
+function countSolutions(P, cap) {
+  const d = domains(P), order = d.map((_, i) => i).sort((a, b) => d[a].length - d[b].length), placed = [];
+  let count = 0, first = null;
+  (function rec(n) {
+    if (count >= cap) return;
+    if (n === order.length) { count++; if (!first) first = placed.slice(); return; }
+    const k = order[n];
+    for (const x of d[k]) {
+      if (placed.every(([b, y]) => compat(P, k, x, b, y))) { placed.push([k, x]); rec(n + 1); placed.pop(); }
+    }
+  })(0);
+  return { count, first };
 }
 
-// ----- level specs: `max` = most solutions allowed once the clues are added -----
-const ALL = ['weight', 'food', 'wet', 'sharp'];
+// tier-1 logic: place a pocket once it has one spot left (cross out everything it touches),
+// and fill a row/column when only one pocket can still reach it.
+function singles(P) {
+  const { N } = P, d = domains(P).map(a => new Set(a)), K = d.length, done = new Set();
+  const rows = x => Math.floor(x / N), cols = x => x % N;
+  for (let g = 0; g < 200; g++) {
+    let changed = false;
+    for (let a = 0; a < K; a++) if (d[a].size === 1 && !done.has(a)) {
+      done.add(a); const x = [...d[a]][0];
+      for (let b = 0; b < K; b++) if (b !== a) for (const y of [...d[b]]) if (!compat(P, a, x, b, y)) { d[b].delete(y); changed = true; }
+    }
+    if (d.some(s => s.size === 0)) return false;
+    for (const f of [rows, cols]) for (let line = 0; line < N; line++) {
+      const reach = []; for (let a = 0; a < K; a++) if ([...d[a]].some(x => f(x) === line)) reach.push(a);
+      if (reach.length === 1) { const a = reach[0]; for (const x of [...d[a]]) if (f(x) !== line) { d[a].delete(x); changed = true; } }
+    }
+    if (!changed) break;
+  }
+  return d.every(s => s.size === 1);
+}
+
+// logic solver. level 1 = eliminate by pairs + "this row/column has only one pocket left".
+// level 2 adds "k pockets fit in only k rows/columns" (and the reverse) for k = 2..3.
+function logic(P, allowHall) {
+  const { N } = P, d = domains(P).map(a => new Set(a));
+  const K = d.length, rows = x => Math.floor(x / N), cols = x => x % N;
+  let usedHall = false, guard = 0;
+  const subsets = (n, k) => { const out = []; (function r(s, cur) { if (cur.length === k) { out.push(cur.slice()); return; } for (let i = s; i < n; i++) { cur.push(i); r(i + 1, cur); cur.pop(); } })(0, []); return out; };
+  while (guard++ < 200) {
+    let changed = false;
+    // pairwise support
+    for (let a = 0; a < K; a++) for (const x of [...d[a]]) for (let b = 0; b < K; b++) {
+      if (a === b) continue;
+      let ok = false; for (const y of d[b]) if (compat(P, a, x, b, y)) { ok = true; break; }
+      if (!ok) { d[a].delete(x); changed = true; break; }
+    }
+    if (d.some(s => s.size === 0)) return { solved: false, broken: true };
+    // each row/column must hold an item: if only one pocket can reach it, that pocket goes there
+    for (const f of [rows, cols]) for (let line = 0; line < N; line++) {
+      const reach = []; for (let a = 0; a < K; a++) if ([...d[a]].some(x => f(x) === line)) reach.push(a);
+      if (reach.length === 1) { const a = reach[0]; for (const x of [...d[a]]) if (f(x) !== line) { d[a].delete(x); changed = true; } }
+    }
+    if (!changed && allowHall) {
+      for (let k = 2; k <= 3 && !changed; k++) for (const f of [rows, cols]) {
+        // k pockets that together only reach k lines own those lines
+        for (const S of subsets(K, k)) {
+          const lines = new Set(); S.forEach(a => d[a].forEach(x => lines.add(f(x))));
+          if (lines.size === k) for (let b = 0; b < K; b++) if (!S.includes(b)) for (const x of [...d[b]]) if (lines.has(f(x))) { d[b].delete(x); changed = true; usedHall = true; }
+        }
+        // k lines that only k pockets can reach belong to those pockets
+        for (const T of subsets(N, k)) {
+          const pk = []; for (let a = 0; a < K; a++) if ([...d[a]].some(x => T.includes(f(x)))) pk.push(a);
+          if (pk.length === k) for (const a of pk) for (const x of [...d[a]]) if (!T.includes(f(x))) { d[a].delete(x); changed = true; usedHall = true; }
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  return { solved: d.every(s => s.size === 1), usedHall };
+}
+
+function growRegions(N, seeds) {
+  const region = Array(N * N).fill(-1); seeds.forEach(([x], k) => region[x] = k);
+  let left = N * N - N;
+  while (left > 0) {
+    const cand = [];
+    for (let x = 0; x < N * N; x++) if (region[x] < 0) {
+      const r = Math.floor(x / N), c = x % N, nb = [];
+      if (r > 0 && region[x - N] >= 0) nb.push(region[x - N]); if (r < N - 1 && region[x + N] >= 0) nb.push(region[x + N]);
+      if (c > 0 && region[x - 1] >= 0) nb.push(region[x - 1]); if (c < N - 1 && region[x + 1] >= 0) nb.push(region[x + 1]);
+      if (nb.length) cand.push([x, nb]);
+    }
+    const [x, nb] = cand[Math.floor(rnd() * cand.length)];
+    region[x] = nb[Math.floor(rnd() * nb.length)]; left--;
+  }
+  return region;
+}
+
+function make(spec) {
+  const N = spec.items.length;
+  for (let t = 0; t < 3000000; t++) {
+    const rows = shuffle([...Array(N).keys()]), cols = shuffle([...Array(N).keys()]);
+    // the hidden answer must respect the rules
+    let ok = true;
+    for (let a = 0; a < N && ok; a++) {
+      if (spec.weight && !weightOk(spec.items[a], rows[a], N)) ok = false;
+      for (let b = a + 1; b < N && ok; b++) if (Math.abs(rows[a] - rows[b]) === 1 && Math.abs(cols[a] - cols[b]) === 1 && incompat(spec.items[a], spec.items[b])) ok = false;
+    }
+    if (!ok) continue;
+    const seeds = spec.items.map((_, a) => [rows[a] * N + cols[a]]);
+    const region = growRegions(N, seeds);
+    const sizes = Array(N).fill(0); region.forEach(k => sizes[k]++);
+    if (Math.min(...sizes) < 2 && spec.noSingles) continue;
+    const P = { N, items: spec.items, region, weight: spec.weight };
+    const res = countSolutions(P, 2);
+    if (res.count !== 1) continue;
+    const tier = singles(P) ? 1 : logic(P, false).solved ? 2 : logic(P, true).solved ? 3 : 4;
+    if (spec.tier === 1 ? tier !== 1 : (tier < spec.tier || tier > 3)) continue;
+    const sol = []; res.first.forEach(([k, x]) => sol[k] = [Math.floor(x / N), x % N]);
+    return { P, sol, tier, tries: t };
+  }
+  return null;
+}
+
+// ---- level specs: trek, title, gear (one pocket each), rules ----
 const S = [
-  { trek: 'inca', title: 'Day 1 · The trailhead', days: 4, rules: ['weight'], max: 40, m: { water: 2, food: 1, rain: 1, camera: 1, med: 1, sun: 1 } },
-  { trek: 'inca', title: 'Day 2 · Dead Woman’s Pass', days: 4, rules: ['weight', 'food'], max: 24, m: { water: 2, food: 2, rain: 1, camera: 1, med: 1, bug: 1 } },
-  { trek: 'inca', title: 'Day 3 · Phuyupatamarca camp', days: 4, rules: ['weight', 'food', 'wet'], max: 12, m: { water: 2, food: 2, tent: 1, bag: 1, rain: 1, camera: 1, bug: 1 } },
-  { trek: 'tmb', title: 'Stage 1 · Les Houches', days: 5, rules: ['weight', 'food', 'wet'], max: 8, m: { water: 2, food: 2, jacket: 1, rain: 1, camera: 1, lamp: 1, med: 1 } },
-  { trek: 'tmb', title: 'Stage 4 · Col du Bonhomme', days: 5, rules: ['weight', 'food', 'wet'], max: 4, m: { water: 2, food: 2, jacket: 1, rain: 1, camera: 1, lamp: 1, med: 1, bug: 1, sun: 1 } },
-  { trek: 'paine', title: 'Day 2 · French Valley', days: 6, rules: ALL, max: 3, m: { water: 2, food: 2, stove: 1, tent: 1, bag: 1, jacket: 1, rain: 1, med: 1 } },
-  { trek: 'paine', title: 'Day 4 · Grey Glacier camp', days: 6, rules: ALL, max: 2, m: { water: 2, food: 3, stove: 1, tent: 1, bag: 1, jacket: 1, rain: 1, lamp: 1, camera: 1 } },
-  { trek: 'kili', title: 'Day 3 · Barranco Wall', days: 6, rules: ALL, max: 2, m: { water: 2, food: 2, bag: 1, jacket: 1, rain: 1, med: 1, lamp: 1, camera: 1, boots: 1, sun: 1 } },
-  { trek: 'kili', title: 'Day 5 · Karanga camp', days: 6, rules: ALL, max: 1, m: { water: 2, food: 3, bag: 1, jacket: 1, rain: 1, med: 1, lamp: 1, boots: 1, bug: 1, camera: 1 } },
-  { trek: 'ebc', title: 'Day 3 · Namche Bazaar', days: 6, rules: ALL, max: 1, m: { water: 2, food: 2, bag: 1, jacket: 1, axe: 1, med: 1, lamp: 1, camera: 1, sun: 1 } },
-  { trek: 'ebc', title: 'Day 8 · Gorak Shep', days: 6, rules: ALL, max: 1, m: { water: 2, food: 2, stove: 1, bag: 1, jacket: 1, axe: 1, med: 1, lamp: 1, camera: 1, boots: 1 } }
+  { trek: 'inca', title: 'Day 1 · The trailhead',          items: ['food', 'bug', 'water', 'camera', 'rain'],                     weight: false, tier: 1 },
+  { trek: 'inca', title: 'Day 2 · Dead Woman’s Pass', items: ['food', 'stove', 'water', 'lamp', 'med'],                      weight: false, tier: 1 },
+  { trek: 'inca', title: 'Day 3 · Phuyupatamarca camp',    items: ['water', 'food', 'tent', 'bag', 'camera', 'bug'],              weight: true,  tier: 1 },
+  { trek: 'tmb',  title: 'Stage 1 · Les Houches',          items: ['water', 'food', 'jacket', 'rain', 'camera', 'lamp'],          weight: true,  tier: 1 },
+  { trek: 'tmb',  title: 'Stage 3 · Col de la Seigne',     items: ['water', 'food', 'bag', 'boots', 'lamp', 'bug'],               weight: true,  tier: 2 },
+  { trek: 'tmb',  title: 'Stage 5 · Grand Col Ferret',     items: ['water', 'food', 'jacket', 'rain', 'camera', 'med', 'bug'],    weight: true,  tier: 2 },
+  { trek: 'paine', title: 'Day 2 · French Valley',         items: ['water', 'food', 'stove', 'tent', 'bag', 'rain', 'med'],         weight: true,  tier: 2 },
+  { trek: 'paine', title: 'Day 4 · Grey Glacier camp',     items: ['water', 'food', 'stove', 'jacket', 'rain', 'lamp', 'camera'], weight: true,  tier: 2 },
+  { trek: 'paine', title: 'Day 5 · Base Torres at dawn',   items: ['water', 'food', 'stove', 'tent', 'bag', 'camera', 'med'],     weight: true,  tier: 2 },
+  { trek: 'kili', title: 'Day 3 · Barranco Wall',          items: ['water', 'food', 'bag', 'jacket', 'rain', 'med', 'lamp'],      weight: true,  tier: 2 },
+  { trek: 'kili', title: 'Day 5 · Karanga camp',           items: ['water', 'food', 'stove', 'bag', 'boots', 'camera', 'lamp', 'bug'], weight: true, tier: 2 },
+  { trek: 'ebc',  title: 'Day 3 · Namche Bazaar',          items: ['water', 'food', 'bag', 'jacket', 'axe', 'med', 'lamp'],       weight: true,  tier: 2 },
+  { trek: 'ebc',  title: 'Day 6 · Lobuche',                items: ['water', 'food', 'stove', 'bag', 'axe', 'camera', 'lamp', 'med'], weight: true, tier: 2 },
+  { trek: 'ebc',  title: 'Day 8 · Gorak Shep',             items: ['water', 'food', 'stove', 'bag', 'jacket', 'axe', 'boots', 'lamp'], weight: true, tier: 2 }
 ];
 
 const out = [];
-S.forEach((s, li) => {
-  let best = null;
-  for (let t = 0; t < 120; t++) {
-    const blocked = new Set(); const nb = Math.floor(rnd() * 4);
-    while (blocked.size < nb) blocked.add(Math.floor(rnd() * R * C));
-    const base = solve(s.m, blocked, s.rules, 1, [], true);
-    if (!base.count) continue;
-    const sol = itemsOf(base.first);
-    // add clues one at a time, always the one that cuts the solution count the most
-    let fixed = [], left = sol.slice(), cnt = solve(s.m, blocked, s.rules, 400, fixed).count;
-    while (cnt > s.max && left.length && (!best || fixed.length < best.fixed.length)) {
-      let pick = null;
-      for (const cand of left) {
-        const c = solve(s.m, blocked, s.rules, 400, [...fixed, cand]).count;
-        if (!pick || c < pick.c || (c === pick.c && rnd() < .3)) pick = { cand, c };
-      }
-      fixed.push(pick.cand); left = left.filter(x => x !== pick.cand); cnt = pick.c;
-    }
-    if (cnt <= s.max && cnt >= 1 && (!best || fixed.length < best.fixed.length)) best = { blocked, fixed, count: cnt, sol };
-  }
-  if (!best) { console.error('NO LEVEL', li + 1, s.title); process.exit(1); }
-  const total = Object.values(s.m).reduce((a, b) => a + b, 0);
-  console.log(li + 1, s.title.padEnd(32), '| items', total, '| clues', best.fixed.length, '| jammed', best.blocked.size, '| solutions', best.count);
-  out.push({ trek: s.trek, title: s.title, days: s.days, rules: s.rules, manifest: s.m,
-    blocked: [...best.blocked].sort((a, b) => a - b).map(i => [Math.floor(i / C), i % C]),
-    fixed: best.fixed, solutions: best.count, solution: best.sol });
+S.forEach((s, i) => {
+  const r = make(s);
+  if (!r) { console.error('NO PUZZLE for', i + 1, s.title); process.exit(1); }
+  const sizes = Array(r.P.N).fill(0); r.P.region.forEach(k => sizes[k]++);
+  console.log(String(i + 1).padStart(2), s.title.padEnd(32), `${r.P.N}x${r.P.N}`, '| tier', r.tier, '| tries', r.tries, '| pocket sizes', sizes.join(','));
+  out.push({ trek: s.trek, title: s.title, N: r.P.N, items: s.items, weight: s.weight, tier: r.tier, region: r.P.region, solution: r.sol });
 });
 fs.writeFileSync(path.join(__dirname, '..', 'levels.js'),
   '/* Generated by tools/gen.js. Do not edit by hand. */\nconst LEVELS = ' + JSON.stringify(out) + ';\nif (typeof module !== \'undefined\') module.exports = LEVELS;\n');

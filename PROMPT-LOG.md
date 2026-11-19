@@ -47,6 +47,16 @@ Looked at the other repos in the project (`w2`, `w3`, `w4`) to copy their conven
 
 Answers to the questions: all four packing rules; pockets with allowed items; the trek sets the exact amounts; and for the photos, "you can look for other places for the photos and fun facts too, you are an AI right, it should be easy".
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 55,918 output, 88,146 new input, 3,586,584 cached input, over 24 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 58,873 output, 91,852 new input, 3,950,392 cached input, over 26 model calls.
 
 Rebuilt the game as a placement puzzle in the Meowdoku style. A backpack grid with five pockets, 14 items that only fit certain pockets (some take two cells), exact quantities per trek, and four packing rules that are introduced one at a time. Wrote a solver (`tools/gen.js`) that generates 11 levels, each solvable, with 60 solutions in the first stage down to 2 in the hardest, and stores one solution for the hint button. Photos: searched Wikimedia Commons, downloaded two free-licensed photos for each of the five treks, and show the photographer and licence under each. Facts come from the Wikipedia articles. Tested in headless Chrome: replayed all 11 solutions through the real tap logic (all win), checked an illegal placement is rejected, and looked at screenshots of the home, trek, game and win screens. Not tested on a real phone. Replaced the sorting game from entry 2. Commit `26a39f6` (the log itself is in the next commit).
+
+## 6. Make it a real challenge
+
+> its giving me exactly where to put everything, whats the challenge?
+>
+> (sent while I was working) but commit before actually doing new changes
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 20,055 output, 22,668 new input, 1,573,093 cached input, over 8 model calls (measured before the turn finished, so slightly low).
+
+The dashed highlight showed every legal spot for the picked item, and the jammed cells left only one or two choices, so the game told you where to put everything. Checked first that the version you were playing was already committed (`26a39f6`, `9353703`) and that only the new generator work was uncommitted. Then rebuilt the challenge: levels now start with a few locked clue items (📌) that the solver picks as the fewest that leave a small number of solutions (30 in stage 1, 1 in the last three), the highlight is gone, and rule breaks can be placed but turn red with the reason. The tray now lists the pockets each item fits, as information rather than the answer. Replayed all 11 solutions through the real tap logic (all win) and checked that water in the lid is flagged red and does not win. Not play-tested by hand, so the difficulty is untested. Commit `f462178` (the log itself is in the next commit).

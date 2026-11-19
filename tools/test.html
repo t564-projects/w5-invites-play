@@ -1,26 +1,25 @@
 <!doctype html><meta charset="utf-8"><body><pre id="out">running</pre>
 <div id="sky"></div><div id="app"></div><div id="layer"></div>
-<script src="../data.js"></script><script src="../levels.js"></script><script src="../credits.js"></script>
-<script>history.replaceState(null,'','?seen&unlock'); window.__instant = true;</script>
+<script src="../data.js"></script><script src="../credits.js"></script><script src="../microgames.js"></script>
+<script>history.replaceState(null,'','?seen'); window.__instant = true;</script>
 <script src="../game.js"></script>
 <script>
-// Plays every valid plan of every stage through the real tap handlers and the real hike, and checks each one wins.
-// Then checks that bad plans fail for the right reason.
+// For every microgame: (1) do the task through the real code and check you survive,
+// (2) do nothing and check you lose (or survive, for "survive until the time is up" games).
+// Then play a whole stage automatically, and a whole stage doing nothing.
 (async () => {
-  const res = []; save.mute = true; save.seen = true;
-  for (let i = 0; i < LEVELS.length; i++) {
-    const L = LEVELS[i]; let wins = 0;
-    for (const sol of L.solutions) {
-      startLevel(i); sol.forEach(id => tapVillage(idxOf(id)));
-      await startHike(); await new Promise(r => setTimeout(r, 30));
-      if (phase === 'won') wins++;
-    }
-    res.push({ level: i + 1, solutions: L.solutions.length, won: wins });
+  const res = []; save.mute = true; save.seen = true; screen = 'play'; renderPlay();
+  for (const id of Object.keys(MICRO)) {
+    window.__auto = true; const a = await runMicro(id, 3);
+    window.__auto = false; const b = await runMicro(id, 3);
+    res.push({ id, solve_wins: a.won, idle_wins: b.won, ok: a.won === true && b.won === false });
   }
-  // wrong plans on the last stage: too far in a day / too high too fast
-  const bad = async (ids) => { startLevel(5); ids.forEach(id => tapVillage(idxOf(id))); await startHike(); await new Promise(r => setTimeout(r, 30)); return { phase, msg: document.querySelector('#bub .tx').textContent.slice(0, 50) }; };
-  res.push({ too_far: await bad(['lukla', 'lukla', 'lukla', 'lukla', 'lukla', 'lukla', 'lukla']) });
-  res.push({ too_fast: await bad(['phakding', 'namche', 'dingboche', 'lobuche', 'gorak', 'gorak', 'gorak']) });
+  // a stage played perfectly
+  window.__auto = true; await playRound('inca', 0); await new Promise(r => setTimeout(r, 50));
+  res.push({ perfect_round: save.won['inca-1'] === true, photo_overlay: !!document.querySelector('.photo'), coins: save.coins });
+  // a stage played by doing nothing (should run out of lives)
+  window.__auto = false; closeOverlay(); await playRound('tmb', 0); await new Promise(r => setTimeout(r, 50));
+  res.push({ idle_round_game_over: !save.won['tmb-1'] && /Out of lives/.test(document.body.innerText), lives: R.lives });
   document.getElementById('out').textContent = JSON.stringify(res);
 })();
 </script>

@@ -107,6 +107,19 @@ Searched the web for the real Everest Base Camp stages (heights, distances) and 
 
 Answers to the questions I asked about the look: "the problem is that its too complex and not fun at all, it should be easier to play, fun, obvious, but challenging you know"; art style: cute pastel cartoon; controls: place tents, then watch the hike.
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 45,211 output, 49,215 new input, 3,221,428 cached input, over 9 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 46,905 output, 51,957 new input, 3,985,992 cached input, over 11 model calls.
 
 The previous screen was a table and a grid of squares with four rules at once. Rebuilt everything you see in a cute pastel cartoon style: a scrollable mountain trail drawn in SVG with villages as little houses, a bear hiker, tent cards and a big Start hike button, with the stages as a winding map of round buttons. You tap a village to put up each night's tent, press Start hike, and watch the bear walk the plan: night falls on the trail, the lodge is full, or the bear turns green and dizzy. The generator now gives each stage only the rules introduced so far (daylight, then the 500 m climb, then rest days), so stage 1 has one rule, and every stage still has one or two valid plans. Played every valid plan of all six stages through the real tap handlers and hike animation (all win), checked that too-far and too-fast plans fail for the right reason, and looked at screenshots of the hub, stage map, a plan and a failed hike. Not play-tested by hand, and the sounds and animations are untested by ear and eye outside headless Chrome. Commit `c2b8756` (the log itself is in the next commit).
+
+## 12. Too easy: make it a "dumb ways to die" game about hiking
+
+> this is way too easy. What if we do a dumb ways to die game but based on hike things?
+> Then you know how you have different background or characters that you just unblock when you get coins and stuff? We will have that for each trekking and when you are in that trekking you see photos and fun facts for each when you win the dumb game. But the logic of the game should be exactly the same, just adjust for hike context
+>
+> (sent while I was working) make sure to commit current state before you start implementing it please
+>
+> continue
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 82,809 output, 479,536 new input, 5,787,896 cached input, over 15 model calls (the new input is large because I looked at the new photos; measured before the turn finished, so slightly low).
+
+Kept the same rules as that style of game: very short microgames with a big instruction, one quick action, a funny death, three lives, and a speed that keeps rising. Before building, committed everything that existed (`62214fd`, which also holds a third photo per trek downloaded from Wikimedia Commons, so each stage unlocks its own photo). Then rebuilt the game as Trail Oops!: 14 hiking microgames (hang the food from the bear, balance at the cliff edge, trail mix vs mystery berries, follow the right trail marker, sunscreen, back away slowly from a bear, dodge lightning, yaks on the uphill side, pole pole rhythm for altitude, crouch in a gust, put out the fire, treat the water, dress for the rain, turn around on time), each with a real ranger tip on its death card. Five treks with 3 stages each (8 microgames, 3 lives, faster each stage), where each survived stage unlocks a real photo and fun fact into an album and also becomes a free background. Coins from each microgame buy hiker outfits and backgrounds. The earlier itinerary puzzle is removed (it is in the git history). Tested in headless Chrome: every microgame survives when the task is done and dies when it is not (this caught two timing bugs in the yak and pole pole games), a perfect stage unlocks the photo, and a stage played by doing nothing ends in game over; looked at screenshots of the home, trek, shop, a microgame and a death card. Not play-tested by hand, so the difficulty, feel and sounds are untested. Commit `829b5d7` (the log itself is in the next commit).

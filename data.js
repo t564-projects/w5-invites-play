@@ -26,6 +26,34 @@ const DATA = {
     weight: { icon: '⚖️', title: 'Heavy low, light high', text: 'Heavy gear (▼) sits in the bottom half of the pack. Light gear (▲) sits in the top half. Medium gear can go anywhere. The middle row works for both.' }
   },
 
+  // Real routes for the itinerary mini-game. Heights and distances are rounded from published itineraries
+  // (they differ by a few percent between sources). km = distance from the start of the trek.
+  ROUTES: {
+    ebc: {
+      facts: [
+        'Lukla (2,860 m) is where most trekkers start. Many fly in from Kathmandu or Ramechhap.',
+        'Namche Bazaar (3,440 m) is the Sherpa trading hub, and most itineraries include an acclimatisation day here.',
+        'Dingboche is another common acclimatisation stop, at about 4,400 m.',
+        'Gorak Shep (about 5,164 m) is the highest overnight stop. Many trekkers visit Base Camp as a day trip and sleep here.',
+        'Kala Patthar, at 5,545 m, is a viewpoint above Gorak Shep and the highest point of the standard trek.',
+        'South Base Camp, in Nepal, sits at 5,364 m (17,598 ft). North Base Camp, in Tibet, is at 5,150 m.'],
+      note: 'Heights and distances are rounded from published itineraries and vary a few percent between sources.',
+      nodes: [
+        { id: 'lukla',     name: 'Lukla',          alt: 2860, km: 0 },
+        { id: 'phakding',  name: 'Phakding',       alt: 2610, km: 6.2 },
+        { id: 'monjo',     name: 'Monjo',          alt: 2835, km: 12 },
+        { id: 'namche',    name: 'Namche Bazaar',  alt: 3440, km: 18 },
+        { id: 'tengboche', name: 'Tengboche',      alt: 3860, km: 28 },
+        { id: 'pangboche', name: 'Pangboche',      alt: 3985, km: 33 },
+        { id: 'dingboche', name: 'Dingboche',      alt: 4410, km: 39 },
+        { id: 'thukla',    name: 'Thukla',         alt: 4620, km: 44 },
+        { id: 'lobuche',   name: 'Lobuche',        alt: 4910, km: 48.5 },
+        { id: 'gorak',     name: 'Gorak Shep',     alt: 5164, km: 53 },
+        { id: 'ebc',       name: 'Everest Base Camp', alt: 5364, km: 57.5 }
+      ]
+    }
+  },
+
   // Real treks. Photos are free-licensed images from Wikimedia Commons (credits in photos/credits.json).
   // Facts come from the Wikipedia articles on each trek.
   TREKS: {

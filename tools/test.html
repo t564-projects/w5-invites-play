@@ -4,18 +4,18 @@
 <script>history.replaceState(null,'','?seen&unlock');</script>
 <script src="../game.js"></script>
 <script>
-// Replays every level's stored solution through the real tap handler (tap twice = place gear) and
-// checks that the game ends in a win. Also checks that rule breaks are flagged and don't win.
+// Plays every valid itinerary of every level through the real tap handler and checks each one wins,
+// then checks that a plan with a rule break does not win and explains why.
 const res = [];
 save.mute = true; save.seen = true;
 LEVELS.forEach((L, i) => {
-  startLevel(i);
-  L.solution.forEach(([r, c]) => { tapCell(r * L.N + c); tapCell(r * L.N + c); });
-  res.push({ level: i + 1, size: L.N, tier: L.tier, won });
+  let wins = 0;
+  L.solutions.forEach(sol => { startLevel(i); sol.forEach((id, n) => pick(n, idxOf(id))); if (won) wins++; });
+  res.push({ level: i + 1, solutions: L.solutions.length, won: wins });
 });
-// wrong move: two gears in the same row must be flagged red and must not win
-startLevel(0); const L0 = LEVELS[0], N = L0.N;
-[0, 1].forEach(c => { tapCell(c); tapCell(c); });
-res.push({ same_row_flagged: analyse().bad.size === 2, still_playing: !won, msg });
+// level 6: sleeping in Namche then straight to Dingboche on a short plan must be flagged
+startLevel(5); const N = nodes();
+pick(0, idxOf('phakding')); pick(1, idxOf('namche')); pick(2, idxOf('dingboche')); pick(3, idxOf('lobuche'));
+res.push({ rule_break_flagged: analyse().some(d => d.probs.length) && !won, kinds: analyse().flatMap(d => d.probs.map(p => p.kind)) });
 document.getElementById('out').textContent = JSON.stringify(res);
 </script>

@@ -1,24 +1,15 @@
 # w5-invites-play
 
-**Trail Pack** is a Meowdoku-style logic puzzle on a hiking backpack, with real treks. Place the right gear in every pocket of the pack using pure logic, then see a real photo and a fun fact from the trek.
+**Trail Pack** is a collection of little hiking puzzles, like a Mario Party for hikers. Each mini-game is built around a real hiking decision, uses real trek data, and ends with a real photo and a fun fact from the trek.
 
 This project is part of the EDU T564A class, Week 5: build something that invites play.
 
-## How to play
+## Mini-games
 
-The pack is an N×N grid split into N coloured pockets. Each pocket holds one specific gear item (shown in its corner and in the tags under the pack).
-
-- **One per pocket.** Each pocket gets exactly one item.
-- **One per row and column.** The weight is spread across the pack.
-- **Keep apart.** Gear that doesn't get along can't touch, even diagonally: food vs smelly things (bug spray, stove fuel, wet boots), wet gear vs electronics and down, sharp or hot gear vs soft gear. The level lists the exact pairs.
-- **Heavy low, light high** (some levels): ▼ gear sits in the bottom half, ▲ gear in the top half.
-- **Size grows with the trek:** 5×5 for the first stages, up to 8×8 on Everest Base Camp.
-
-Tap a square once to mark ✕ (gear can't be here), twice to place the gear, three times to clear. Every puzzle has exactly one solution that you can reach by logic alone, with no guessing. Wrong placements turn red and say why.
-
-Extras: a timer with your best time per stage, 💡 hints (+30 seconds), and 🪄 auto-✕, which crosses out the squares a placed item rules out.
-
-Five treks, 14 stages: Inca Trail, Tour du Mont Blanc, Torres del Paine, Kilimanjaro, Everest Base Camp. Each solved stage shows a real photo and a fun fact.
+- ⛰️ **Climb High, Sleep Low** (playable): plan the nights of the Everest Base Camp trek without getting altitude sickness. Choose where to sleep each night, using the real villages, heights and distances. The rules come from Wilderness Medical Society and CDC guidance: above 3,000 m, raise your sleeping altitude by no more than about 500 m a night, take a rest day every 3–4 days, and keep each day's walk within a limit. Some lodges are full on some nights. Every stage has only one to three valid plans, so you have to reason it out. Each day tells you what would go wrong on the real trail, and each solved stage gives a ranger tip, a fun fact and a photo.
+- 🎒 **Pack Fit** (coming soon): fit gear into the pack with needs, limits and things that can't touch.
+- 🗺️ **Contour Route** (coming soon): read the contour lines and find the safe way up.
+- 🔤 **Trail Words** (coming soon): find hiking words and learn what they mean.
 
 ## Run it
 
@@ -27,12 +18,12 @@ Open `index.html` in a browser. No server or build step is needed. It works on a
 ## Files
 
 - `index.html`, `style.css`, `game.js`: the game.
-- `data.js`: gear, rules and the treks (with their fun facts).
-- `levels.js`: the 14 levels. Generated, don't edit by hand.
-- `tools/gen.js`: makes `levels.js`. It builds a random valid pack with a hidden answer, grows the pockets around it, and keeps the layout only if a solver finds exactly one solution and a logic-only solver can reach it. Run `node tools/gen.js`. Difficulty tiers: 1 = fill in what is forced, 2 = needs deeper elimination between pockets, 3 = needs group reasoning.
-- `tools/test.html`: open it in a browser (or headless Chrome) to replay every level's solution through the real game logic.
+- `data.js`: the real routes (villages, heights, distances, facts), the treks and the gear data for the next mini-game.
+- `levels.js`: the stages. Generated, don't edit by hand.
+- `tools/gen.js`: makes `levels.js`. It tries combinations of days, daily walking limit and full lodges, counts the valid itineraries with a solver, and keeps stages with only a few answers.
+- `tools/test.html`: open it in a browser (or headless Chrome) to play every valid itinerary of every stage through the real game logic.
 - `photos/` and `credits.js`: trek photos with their credits.
 
-## Photos and facts
+## Data, photos and facts
 
-Photos are free-licensed images from [Wikimedia Commons](https://commons.wikimedia.org/) (CC BY or CC BY-SA). The game shows each photographer, licence and link under the photo. The full list is in `photos/credits.json`. Fun facts come from the Wikipedia articles on each trek.
+Heights and distances are rounded from published itineraries and vary a few percent between sources. The walking time is a simple game estimate from distance and climbing. Photos are free-licensed images from [Wikimedia Commons](https://commons.wikimedia.org/) (CC BY or CC BY-SA), with the credit shown under each photo. The full list is in `photos/credits.json`. Facts come from Wikipedia and published trek guides.

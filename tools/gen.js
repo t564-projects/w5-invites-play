@@ -1,178 +1,84 @@
-// Generates levels.js: Meowdoku-style puzzles on a backpack.
-// Each level is an N x N pack split into N coloured pockets. Each pocket holds one specific gear item.
-// Rules: one item per pocket, row and column; incompatible gear can't touch (even diagonally);
-// heavy gear in the lower half, light gear in the upper half.
-// Every kept puzzle has exactly ONE solution and can be solved by logic alone (no guessing).
+// Generates levels.js for "Climb High, Sleep Low".
+// A level = a stretch of a real trek, a number of days, a daily walking limit and a few lodges that are full on some nights.
+// The solver counts the valid itineraries so each level has only a few answers to find by reasoning.
 // Run: node tools/gen.js
 const fs = require('fs'), path = require('path');
-const { ITEMS } = require('../data.js');
+const { ROUTES } = require('../data.js');
 
-const has = (id, t) => ITEMS[id].tags.includes(t);
-const one = (x, y) => (has(x, 'food') && has(y, 'smelly')) || (has(x, 'wet') && (has(y, 'electronic') || has(y, 'down'))) || ((has(x, 'sharp') || has(x, 'hot')) && has(y, 'soft'));
-const incompat = (a, b) => one(a, b) || one(b, a);
-const weightOk = (id, r, N) => { const mid = Math.floor(N / 2), w = ITEMS[id].weight; return w === 'H' ? r >= mid : w === 'L' ? r <= mid : true; };
+// ---- the rules (must match game.js) ----
+const RULES = { maxGain: 500, base: 3000, maxGainingNights: 3 };
+const hoursBetween = (nodes, a, b) => { let h = 0; for (let i = a; i < b; i++) { const d = nodes[i + 1].km - nodes[i].km, up = Math.max(0, nodes[i + 1].alt - nodes[i].alt); h += d / 2.5 + up / 500; } return h; };
+const effGain = (prevAlt, alt) => alt > RULES.base ? Math.max(0, alt - Math.max(prevAlt, RULES.base)) : 0;
 
-let seed = 20261119;
+// Itinerary = the village slept in on each of the first D-1 nights; night D is spent at the end of the stretch.
+// Returns the list of problems (empty = valid).
+function check(route, L, nights) {
+  const nodes = route.nodes, probs = [];
+  let from = L.start, prevAlt = nodes[L.start].alt, streak = 0;
+  const stops = nights.concat([L.end]);
+  stops.forEach((to, i) => {
+    const last = i === nights.length;
+    if (to < from) { probs.push({ day: i, kind: 'back' }); return; }
+    const h = hoursBetween(nodes, from, to);
+    if (h > L.maxHours + 1e-9) probs.push({ day: i, kind: 'hours', h });
+    if (L.full.some(([v, n]) => v === to && n === i + 1)) probs.push({ day: i, kind: 'full' });
+    const g = effGain(prevAlt, nodes[to].alt);
+    if (g > RULES.maxGain) probs.push({ day: i, kind: 'gain', g });
+    if (nodes[to].alt > RULES.base && nodes[to].alt > prevAlt) streak++; else streak = 0;
+    if (streak > RULES.maxGainingNights) probs.push({ day: i, kind: 'rest' });
+    if (last && to === from) probs.push({ day: i, kind: 'noprogress' });
+    prevAlt = nodes[to].alt; from = to;
+  });
+  return probs;
+}
+function solve(route, L, cap) {
+  const nn = L.days - 1, sols = [];
+  (function rec(i, from, seq) {
+    if (sols.length >= cap) return;
+    if (i === nn) { if (!check(route, L, seq).length) sols.push(seq.slice()); return; }
+    for (let v = from; v < L.end; v++) { seq.push(v); rec(i + 1, v, seq); seq.pop(); }
+  })(0, L.start, []);
+  return sols;
+}
+
+let seed = 424242;
 const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
-const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-// ---- puzzle = { N, items[k] (gear id of pocket k), region[cell] -> pocket, weight:boolean } ----
-function domains(P) {
-  const { N, items, region, weight } = P, d = items.map(() => []);
-  for (let x = 0; x < N * N; x++) { const k = region[x]; if (!weight || weightOk(items[k], Math.floor(x / N), N)) d[k].push(x); }
-  return d;
-}
-const compat = (P, a, x, b, y) => {
-  const N = P.N, rx = Math.floor(x / N), cx = x % N, ry = Math.floor(y / N), cy = y % N;
-  if (rx === ry || cx === cy) return false;
-  if (Math.abs(rx - ry) === 1 && Math.abs(cx - cy) === 1 && incompat(P.items[a], P.items[b])) return false;
-  return true;
-};
-
-// count solutions (up to cap) by search
-function countSolutions(P, cap) {
-  const d = domains(P), order = d.map((_, i) => i).sort((a, b) => d[a].length - d[b].length), placed = [];
-  let count = 0, first = null;
-  (function rec(n) {
-    if (count >= cap) return;
-    if (n === order.length) { count++; if (!first) first = placed.slice(); return; }
-    const k = order[n];
-    for (const x of d[k]) {
-      if (placed.every(([b, y]) => compat(P, k, x, b, y))) { placed.push([k, x]); rec(n + 1); placed.pop(); }
-    }
-  })(0);
-  return { count, first };
-}
-
-// tier-1 logic: place a pocket once it has one spot left (cross out everything it touches),
-// and fill a row/column when only one pocket can still reach it.
-function singles(P) {
-  const { N } = P, d = domains(P).map(a => new Set(a)), K = d.length, done = new Set();
-  const rows = x => Math.floor(x / N), cols = x => x % N;
-  for (let g = 0; g < 200; g++) {
-    let changed = false;
-    for (let a = 0; a < K; a++) if (d[a].size === 1 && !done.has(a)) {
-      done.add(a); const x = [...d[a]][0];
-      for (let b = 0; b < K; b++) if (b !== a) for (const y of [...d[b]]) if (!compat(P, a, x, b, y)) { d[b].delete(y); changed = true; }
-    }
-    if (d.some(s => s.size === 0)) return false;
-    for (const f of [rows, cols]) for (let line = 0; line < N; line++) {
-      const reach = []; for (let a = 0; a < K; a++) if ([...d[a]].some(x => f(x) === line)) reach.push(a);
-      if (reach.length === 1) { const a = reach[0]; for (const x of [...d[a]]) if (f(x) !== line) { d[a].delete(x); changed = true; } }
-    }
-    if (!changed) break;
-  }
-  return d.every(s => s.size === 1);
-}
-
-// logic solver. level 1 = eliminate by pairs + "this row/column has only one pocket left".
-// level 2 adds "k pockets fit in only k rows/columns" (and the reverse) for k = 2..3.
-function logic(P, allowHall) {
-  const { N } = P, d = domains(P).map(a => new Set(a));
-  const K = d.length, rows = x => Math.floor(x / N), cols = x => x % N;
-  let usedHall = false, guard = 0;
-  const subsets = (n, k) => { const out = []; (function r(s, cur) { if (cur.length === k) { out.push(cur.slice()); return; } for (let i = s; i < n; i++) { cur.push(i); r(i + 1, cur); cur.pop(); } })(0, []); return out; };
-  while (guard++ < 200) {
-    let changed = false;
-    // pairwise support
-    for (let a = 0; a < K; a++) for (const x of [...d[a]]) for (let b = 0; b < K; b++) {
-      if (a === b) continue;
-      let ok = false; for (const y of d[b]) if (compat(P, a, x, b, y)) { ok = true; break; }
-      if (!ok) { d[a].delete(x); changed = true; break; }
-    }
-    if (d.some(s => s.size === 0)) return { solved: false, broken: true };
-    // each row/column must hold an item: if only one pocket can reach it, that pocket goes there
-    for (const f of [rows, cols]) for (let line = 0; line < N; line++) {
-      const reach = []; for (let a = 0; a < K; a++) if ([...d[a]].some(x => f(x) === line)) reach.push(a);
-      if (reach.length === 1) { const a = reach[0]; for (const x of [...d[a]]) if (f(x) !== line) { d[a].delete(x); changed = true; } }
-    }
-    if (!changed && allowHall) {
-      for (let k = 2; k <= 3 && !changed; k++) for (const f of [rows, cols]) {
-        // k pockets that together only reach k lines own those lines
-        for (const S of subsets(K, k)) {
-          const lines = new Set(); S.forEach(a => d[a].forEach(x => lines.add(f(x))));
-          if (lines.size === k) for (let b = 0; b < K; b++) if (!S.includes(b)) for (const x of [...d[b]]) if (lines.has(f(x))) { d[b].delete(x); changed = true; usedHall = true; }
-        }
-        // k lines that only k pockets can reach belong to those pockets
-        for (const T of subsets(N, k)) {
-          const pk = []; for (let a = 0; a < K; a++) if ([...d[a]].some(x => T.includes(f(x)))) pk.push(a);
-          if (pk.length === k) for (const a of pk) for (const x of [...d[a]]) if (!T.includes(f(x))) { d[a].delete(x); changed = true; usedHall = true; }
-        }
-      }
-    }
-    if (!changed) break;
-  }
-  return { solved: d.every(s => s.size === 1), usedHall };
-}
-
-function growRegions(N, seeds) {
-  const region = Array(N * N).fill(-1); seeds.forEach(([x], k) => region[x] = k);
-  let left = N * N - N;
-  while (left > 0) {
-    const cand = [];
-    for (let x = 0; x < N * N; x++) if (region[x] < 0) {
-      const r = Math.floor(x / N), c = x % N, nb = [];
-      if (r > 0 && region[x - N] >= 0) nb.push(region[x - N]); if (r < N - 1 && region[x + N] >= 0) nb.push(region[x + N]);
-      if (c > 0 && region[x - 1] >= 0) nb.push(region[x - 1]); if (c < N - 1 && region[x + 1] >= 0) nb.push(region[x + 1]);
-      if (nb.length) cand.push([x, nb]);
-    }
-    const [x, nb] = cand[Math.floor(rnd() * cand.length)];
-    region[x] = nb[Math.floor(rnd() * nb.length)]; left--;
-  }
-  return region;
-}
-
-function make(spec) {
-  const N = spec.items.length;
-  for (let t = 0; t < 3000000; t++) {
-    const rows = shuffle([...Array(N).keys()]), cols = shuffle([...Array(N).keys()]);
-    // the hidden answer must respect the rules
-    let ok = true;
-    for (let a = 0; a < N && ok; a++) {
-      if (spec.weight && !weightOk(spec.items[a], rows[a], N)) ok = false;
-      for (let b = a + 1; b < N && ok; b++) if (Math.abs(rows[a] - rows[b]) === 1 && Math.abs(cols[a] - cols[b]) === 1 && incompat(spec.items[a], spec.items[b])) ok = false;
-    }
-    if (!ok) continue;
-    const seeds = spec.items.map((_, a) => [rows[a] * N + cols[a]]);
-    const region = growRegions(N, seeds);
-    const sizes = Array(N).fill(0); region.forEach(k => sizes[k]++);
-    if (Math.min(...sizes) < 2 && spec.noSingles) continue;
-    const P = { N, items: spec.items, region, weight: spec.weight };
-    const res = countSolutions(P, 2);
-    if (res.count !== 1) continue;
-    const tier = singles(P) ? 1 : logic(P, false).solved ? 2 : logic(P, true).solved ? 3 : 4;
-    if (spec.tier === 1 ? tier !== 1 : (tier < spec.tier || tier > 3)) continue;
-    const sol = []; res.first.forEach(([k, x]) => sol[k] = [Math.floor(x / N), x % N]);
-    return { P, sol, tier, tries: t };
-  }
-  return null;
-}
-
-// ---- level specs: trek, title, gear (one pocket each), rules ----
-const S = [
-  { trek: 'inca', title: 'Day 1 · The trailhead',          items: ['food', 'bug', 'water', 'camera', 'rain'],                     weight: false, tier: 1 },
-  { trek: 'inca', title: 'Day 2 · Dead Woman’s Pass', items: ['food', 'stove', 'water', 'lamp', 'med'],                      weight: false, tier: 1 },
-  { trek: 'inca', title: 'Day 3 · Phuyupatamarca camp',    items: ['water', 'food', 'tent', 'bag', 'camera', 'bug'],              weight: true,  tier: 1 },
-  { trek: 'tmb',  title: 'Stage 1 · Les Houches',          items: ['water', 'food', 'jacket', 'rain', 'camera', 'lamp'],          weight: true,  tier: 1 },
-  { trek: 'tmb',  title: 'Stage 3 · Col de la Seigne',     items: ['water', 'food', 'bag', 'boots', 'lamp', 'bug'],               weight: true,  tier: 2 },
-  { trek: 'tmb',  title: 'Stage 5 · Grand Col Ferret',     items: ['water', 'food', 'jacket', 'rain', 'camera', 'med', 'bug'],    weight: true,  tier: 2 },
-  { trek: 'paine', title: 'Day 2 · French Valley',         items: ['water', 'food', 'stove', 'tent', 'bag', 'rain', 'med'],         weight: true,  tier: 2 },
-  { trek: 'paine', title: 'Day 4 · Grey Glacier camp',     items: ['water', 'food', 'stove', 'jacket', 'rain', 'lamp', 'camera'], weight: true,  tier: 2 },
-  { trek: 'paine', title: 'Day 5 · Base Torres at dawn',   items: ['water', 'food', 'stove', 'tent', 'bag', 'camera', 'med'],     weight: true,  tier: 2 },
-  { trek: 'kili', title: 'Day 3 · Barranco Wall',          items: ['water', 'food', 'bag', 'jacket', 'rain', 'med', 'lamp'],      weight: true,  tier: 2 },
-  { trek: 'kili', title: 'Day 5 · Karanga camp',           items: ['water', 'food', 'stove', 'bag', 'boots', 'camera', 'lamp', 'bug'], weight: true, tier: 2 },
-  { trek: 'ebc',  title: 'Day 3 · Namche Bazaar',          items: ['water', 'food', 'bag', 'jacket', 'axe', 'med', 'lamp'],       weight: true,  tier: 2 },
-  { trek: 'ebc',  title: 'Day 6 · Lobuche',                items: ['water', 'food', 'stove', 'bag', 'axe', 'camera', 'lamp', 'med'], weight: true, tier: 2 },
-  { trek: 'ebc',  title: 'Day 8 · Gorak Shep',             items: ['water', 'food', 'stove', 'bag', 'jacket', 'axe', 'boots', 'lamp'], weight: true, tier: 2 }
+const route = ROUTES.ebc, idx = id => route.nodes.findIndex(n => n.id === id);
+const SPECS = [
+  { title: 'Lukla to Namche Bazaar', start: 'lukla', end: 'namche', max: 1 },
+  { title: 'Namche Bazaar to Dingboche', start: 'namche', end: 'dingboche', max: 2 },
+  { title: 'Lukla to Dingboche', start: 'lukla', end: 'dingboche', max: 3 },
+  { title: 'Dingboche to Gorak Shep', start: 'dingboche', end: 'gorak', max: 2 },
+  { title: 'Lukla to Lobuche', start: 'lukla', end: 'lobuche', max: 3 },
+  { title: 'Lukla to Everest Base Camp', start: 'lukla', end: 'ebc', max: 3 }
 ];
-
 const out = [];
-S.forEach((s, i) => {
-  const r = make(s);
-  if (!r) { console.error('NO PUZZLE for', i + 1, s.title); process.exit(1); }
-  const sizes = Array(r.P.N).fill(0); r.P.region.forEach(k => sizes[k]++);
-  console.log(String(i + 1).padStart(2), s.title.padEnd(32), `${r.P.N}x${r.P.N}`, '| tier', r.tier, '| tries', r.tries, '| pocket sizes', sizes.join(','));
-  out.push({ trek: s.trek, title: s.title, N: r.P.N, items: s.items, weight: s.weight, tier: r.tier, region: r.P.region, solution: r.sol });
+SPECS.forEach((sp, li) => {
+  const start = idx(sp.start), end = idx(sp.end); let best = null;
+  for (let t = 0; t < 20000 && !best; t++) {
+    const base = { start, end, days: 2 + Math.floor(rnd() * 10), maxHours: [5.5, 6, 6.5, 7][Math.floor(rnd() * 4)], full: [] };
+    const nfull = Math.floor(rnd() * 4);
+    for (let k = 0; k < nfull; k++) { const f = [start + 1 + Math.floor(rnd() * (end - start)), 1 + Math.floor(rnd() * base.days)]; if (!base.full.some(g => g[0] === f[0] && g[1] === f[1])) base.full.push(f); }
+    if (base.days - 1 < 1) continue;
+    const sols = solve(route, base, sp.max + 1);
+    const minDays = null;
+    if (sols.length >= 1 && sols.length <= sp.max) {
+      // prefer harder levels: more nights, fewer solutions
+      const score = base.days * 10 - sols.length;
+      if (!best || score > best.score) best = { ...base, sols, score };
+    }
+  }
+  if (!best) { console.error('NO LEVEL', sp.title); process.exit(1); }
+  // drop "full lodge" notes that don't change the answer, so every clue matters
+  for (let k = best.full.length - 1; k >= 0; k--) {
+    const trial = { ...best, full: best.full.filter((_, j) => j !== k) };
+    const again = solve(route, trial, 99);
+    if (again.length === best.sols.length) { best.full = trial.full; }
+  }
+  console.log(String(li + 1).padStart(2), sp.title.padEnd(40), '| days', best.days, '| max h', best.maxHours, '| full', JSON.stringify(best.full.map(([v, n]) => route.nodes[v].name + '@' + n)), '| solutions', best.sols.length);
+  out.push({ trek: 'ebc', title: sp.title, start: sp.start, end: sp.end, days: best.days, maxHours: best.maxHours,
+    full: best.full.map(([v, n]) => [route.nodes[v].id, n]), solutions: best.sols.map(s => s.map(v => route.nodes[v].id)) });
 });
 fs.writeFileSync(path.join(__dirname, '..', 'levels.js'),
   '/* Generated by tools/gen.js. Do not edit by hand. */\nconst LEVELS = ' + JSON.stringify(out) + ';\nif (typeof module !== \'undefined\') module.exports = LEVELS;\n');

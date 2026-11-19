@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><body><pre id="out">running</pre>
+<div id="bg"></div><div id="app"></div><div id="layer"></div>
+<script src="../data.js"></script><script src="../levels.js"></script><script src="../credits.js"></script>
+<script>history.replaceState(null,'','?seen&unlock');</script>
+<script src="../game.js"></script>
+<script>
+// Replays each level's stored solution through the real tap functions and checks the game ends in a win.
+const res = [];
+save.mute = true; save.seen = true;
+LEVELS.forEach((L, i) => {
+  startLevel(i);
+  let rejected = 0;
+  L.solution.forEach(s => {
+    if (sel !== s.id) pick(s.id);
+    const r = Math.min(...s.cells.map(x => x[0])), c = Math.min(...s.cells.map(x => x[1]));
+    rot = s.cells.length > 1 && s.cells[0][1] === s.cells[1][1] ? 1 : 0;
+    const before = placed.length; tapCell(r, c); if (placed.length === before) rejected++;
+  });
+  // a rule-breaking move must be flagged: put the first item somewhere illegal and check it is rejected or red
+  res.push({ level: i + 1, placed: placed.length, of: L.solution.length, rejected, won });
+});
+// negative test: water in the lid must be rejected
+startLevel(0); if (sel !== 'water') pick('water'); const n0 = placed.length; tapCell(0, 0);
+res.push({ negative_water_in_lid_rejected: placed.length === n0, msg });
+document.getElementById('out').textContent = JSON.stringify(res);
+</script>

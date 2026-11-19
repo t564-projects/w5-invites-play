@@ -39,4 +39,4 @@ Proposed four design questions (which items can't sit together, how the backpack
 
 Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 3,187 output, 11,027 new input, 403,133 cached input, over 5 model calls (measured before the turn finished, so slightly low).
 
-Looked at the other repos in the project (`w2`, `w3`, `w4`) to copy their conventions: `t564-projects` on GitHub, private, `main`, and a `PROMPT-LOG.md`. Ran `git init`, created the private repo `t564-projects/w5-invites-play` with `origin` set, and committed `index.html` (the sorting-game version from entry 2) with this log. Not pushed. Commit `7da3970`.
+Looked at the other repos in the project (`w2`, `w3`, `w4`) to copy their conventions: `t564-projects` on GitHub, private, `main`, and a `PROMPT-LOG.md`. Ran `git init`, created the private repo `t564-projects/w5-invites-play` with `origin` set, and committed `index.html` (the sorting-game version from entry 2), then added this log. Not pushed. Commit `da54ef0` (the log itself is in the next commit).

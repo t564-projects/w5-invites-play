@@ -37,6 +37,16 @@ Proposed four design questions (which items can't sit together, how the backpack
 >
 > (sent while I was working) then we can continue
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 3,187 output, 11,027 new input, 403,133 cached input, over 5 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 7,255 output, 16,441 new input, 672,728 cached input, over 8 model calls.
 
 Looked at the other repos in the project (`w2`, `w3`, `w4`) to copy their conventions: `t564-projects` on GitHub, private, `main`, and a `PROMPT-LOG.md`. Ran `git init`, created the private repo `t564-projects/w5-invites-play` with `origin` set, and committed `index.html` (the sorting-game version from entry 2), then added this log. Not pushed. Commit `da54ef0` (the log itself is in the next commit).
+
+## 5. Ask the design questions again, then build the new game
+
+> yeah, lets go back to you asking with the multiple choice options
+
+Answers to the questions: all four packing rules; pockets with allowed items; the trek sets the exact amounts; and for the photos, "you can look for other places for the photos and fun facts too, you are an AI right, it should be easy".
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 55,918 output, 88,146 new input, 3,586,584 cached input, over 24 model calls (measured before the turn finished, so slightly low).
+
+Rebuilt the game as a placement puzzle in the Meowdoku style. A backpack grid with five pockets, 14 items that only fit certain pockets (some take two cells), exact quantities per trek, and four packing rules that are introduced one at a time. Wrote a solver (`tools/gen.js`) that generates 11 levels, each solvable, with 60 solutions in the first stage down to 2 in the hardest, and stores one solution for the hint button. Photos: searched Wikimedia Commons, downloaded two free-licensed photos for each of the five treks, and show the photographer and licence under each. Facts come from the Wikipedia articles. Tested in headless Chrome: replayed all 11 solutions through the real tap logic (all win), checked an illegal placement is rejected, and looked at screenshots of the home, trek, game and win screens. Not tested on a real phone. Replaced the sorting game from entry 2. Commit `26a39f6` (the log itself is in the next commit).

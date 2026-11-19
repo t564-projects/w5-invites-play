@@ -10,17 +10,18 @@ save.mute = true; save.seen = true;
 LEVELS.forEach((L, i) => {
   startLevel(i);
   let rejected = 0;
-  L.solution.forEach(s => {
+  const fk = new Set((L.fixed || []).map(f => f.id + JSON.stringify(f.cells)));
+  L.solution.filter(s => !fk.has(s.id + JSON.stringify(s.cells))).forEach(s => {
     if (sel !== s.id) pick(s.id);
     const r = Math.min(...s.cells.map(x => x[0])), c = Math.min(...s.cells.map(x => x[1]));
     rot = s.cells.length > 1 && s.cells[0][1] === s.cells[1][1] ? 1 : 0;
     const before = placed.length; tapCell(r, c); if (placed.length === before) rejected++;
   });
   // a rule-breaking move must be flagged: put the first item somewhere illegal and check it is rejected or red
-  res.push({ level: i + 1, placed: placed.length, of: L.solution.length, rejected, won });
+  res.push({ level: i + 1, clues: fk.size, placed: placed.length - fk.size, of: L.solution.length - fk.size, rejected, won });
 });
-// negative test: water in the lid must be rejected
-startLevel(0); if (sel !== 'water') pick('water'); const n0 = placed.length; tapCell(0, 0);
-res.push({ negative_water_in_lid_rejected: placed.length === n0, msg });
+// a rule break is allowed but must be flagged and must not win: water on top of an empty pack's lid row
+startLevel(0); sel = 'water'; const free = []; for (let r = 0; r < 5; r++) for (let c = 0; c < 4; c++) if (check('water', r, c, 0).ok && ZONES[r][c] === 'lid') free.push([r, c]);
+tapCell(...free[0]); res.push({ water_in_lid_flagged_red: itemIssues().length === 1, still_playing: !won, msg });
 document.getElementById('out').textContent = JSON.stringify(res);
 </script>

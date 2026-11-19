@@ -1,11 +1,12 @@
-// Generates levels.js. For each level spec it searches for a set of blocked cells
-// (zips jammed shut) so the puzzle has a small number of valid solutions.
+// Generates levels.js, Meowdoku style: each level is a pack with a few items already
+// locked in place (clues). The solver picks the fewest clues that leave a small number
+// of valid solutions, so the rest has to be worked out from the rules.
 // Run: node tools/gen.js
 const fs = require('fs'), path = require('path');
 const D = require('../data.js');
 const { ZONES, ITEMS } = D, R = ZONES.length, C = ZONES[0].length;
 
-// ----- rules -----
+// ----- rules (must match game.js) -----
 const has = (id, t) => ITEMS[id].tags.includes(t);
 function conflict(a, b, rules) {
   const pair = (x, y) => (
@@ -17,9 +18,7 @@ function conflict(a, b, rules) {
 function rowOk(id, r, rules) {
   if (!rules.includes('weight')) return true;
   const w = ITEMS[id].weight;
-  if (w === 'H') return r >= 2;
-  if (w === 'L') return r <= 2;
-  return true;
+  return w === 'H' ? r >= 2 : w === 'L' ? r <= 2 : true;
 }
 function placements(id, blocked, rules) {
   const it = ITEMS[id], out = [];
@@ -31,28 +30,30 @@ function placements(id, blocked, rules) {
   return out;
 }
 
-// ----- solver: counts solutions up to cap -----
-function solve(manifest, blocked, rules, cap) {
+let seed = 987654;
+const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ----- solver: counts solutions up to cap; `fixed` items are already placed -----
+function solve(manifest, blocked, rules, cap, fixed = [], randomize = false) {
+  const m = { ...manifest }; fixed.forEach(f => m[f.id]--);
   const list = [];
-  for (const id of Object.keys(manifest)) for (let k = 0; k < manifest[id]; k++) list.push({ id, k });
-  const pl = list.map(p => placements(p.id, blocked, rules));
+  for (const id of Object.keys(m)) for (let k = 0; k < m[id]; k++) list.push({ id, k });
+  const pl = list.map(p => { const a = placements(p.id, blocked, rules); return randomize ? shuffle(a) : a; });
   if (pl.some(p => !p.length)) return { count: 0 };
   const order = list.map((_, i) => i).sort((a, b) => pl[a].length - pl[b].length);
   const grid = Array(R * C).fill(null);
+  fixed.forEach((f, fi) => f.cells.forEach(([r, c]) => grid[r * C + c] = { id: f.id, i: -1 - fi }));
   let count = 0, first = null, nodes = 0;
   const lastIdx = {};
   function rec(n) {
-    if (count >= cap || nodes > 400000) return;
+    if (count >= cap || nodes > 600000) return;
     if (n === order.length) { count++; if (!first) first = grid.slice(); return; }
     const i = order[n], id = list[i].id;
     for (let pi = 0; pi < pl[i].length; pi++) {
       nodes++;
-      // identical copies: keep placement indices increasing to avoid counting permutations
-      const prevKey = id + ':' + (list[i].k - 1);
-      if (list[i].k > 0 && lastIdx[prevKey] !== undefined) {
-        // only valid when the previous copy was placed already (copies are placed in order of k within `order`)
-        if (pi <= lastIdx[prevKey]) continue;
-      }
+      const prev = id + ':' + (list[i].k - 1);
+      if (list[i].k > 0 && lastIdx[prev] !== undefined && pi <= lastIdx[prev]) continue; // identical copies: no permutations
       const cells = pl[i][pi];
       if (cells.some(([r, c]) => grid[r * C + c] !== null)) continue;
       let ok = true;
@@ -71,48 +72,58 @@ function solve(manifest, blocked, rules, cap) {
     }
   }
   rec(0);
-  return { count, first, truncated: nodes > 400000 };
+  return { count, first, truncated: nodes > 600000 };
+}
+function itemsOf(grid) {
+  const g = {};
+  grid.forEach((c, i) => { if (c) (g[c.i] = g[c.i] || { id: c.id, cells: [] }).cells.push([Math.floor(i / C), i % C]); });
+  return Object.values(g);
 }
 
-// ----- seeded rng -----
-let seed = 12345;
-const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-
-// ----- level specs -----
+// ----- level specs: `max` = most solutions allowed once the clues are added -----
 const ALL = ['weight', 'food', 'wet', 'sharp'];
 const S = [
-  { trek: 'inca', title: 'Day 1 · The trailhead', days: 4, rules: ['weight'], max: 4000, nb: [3, 7], m: { water: 2, food: 1, rain: 1, camera: 1, med: 1, sun: 1 } },
-  { trek: 'inca', title: 'Day 2 · Dead Woman’s Pass', days: 4, rules: ['weight', 'food'], max: 2000, nb: [3, 7], m: { water: 2, food: 2, rain: 1, camera: 1, med: 1, bug: 1 } },
-  { trek: 'inca', title: 'Day 3 · Phuyupatamarca camp', days: 4, rules: ['weight', 'food', 'wet'], max: 600, nb: [3, 7], m: { water: 2, food: 2, tent: 1, bag: 1, rain: 1, camera: 1, bug: 1 } },
-  { trek: 'tmb', title: 'Stage 1 · Les Houches', days: 5, rules: ['weight', 'food', 'wet'], max: 300, nb: [3, 7], m: { water: 2, food: 2, jacket: 1, rain: 1, camera: 1, lamp: 1, med: 1 } },
-  { trek: 'tmb', title: 'Stage 4 · Col du Bonhomme', days: 5, rules: ['weight', 'food', 'wet'], max: 120, nb: [3, 7], m: { water: 2, food: 2, jacket: 1, rain: 1, camera: 1, lamp: 1, med: 1, bug: 1, sun: 1 } },
-  { trek: 'paine', title: 'Day 2 · French Valley', days: 6, rules: ALL, max: 60, nb: [3, 7], m: { water: 2, food: 2, stove: 1, tent: 1, bag: 1, jacket: 1, rain: 1, med: 1 } },
-  { trek: 'paine', title: 'Day 4 · Grey Glacier camp', days: 6, rules: ALL, max: 30, nb: [3, 7], m: { water: 2, food: 3, stove: 1, tent: 1, bag: 1, jacket: 1, rain: 1, lamp: 1, camera: 1 } },
-  { trek: 'kili', title: 'Day 3 · Barranco Wall', days: 6, rules: ALL, max: 30, nb: [3, 7], m: { water: 2, food: 2, bag: 1, jacket: 1, rain: 1, med: 1, lamp: 1, camera: 1, boots: 1, sun: 1 } },
-  { trek: 'kili', title: 'Day 5 · Karanga camp', days: 6, rules: ALL, max: 12, nb: [3, 7], m: { water: 2, food: 3, bag: 1, jacket: 1, rain: 1, med: 1, lamp: 1, boots: 1, bug: 1, camera: 1 } },
-  { trek: 'ebc', title: 'Day 3 · Namche Bazaar', days: 6, rules: ALL, max: 12, nb: [3, 7], m: { water: 2, food: 2, bag: 1, jacket: 1, axe: 1, med: 1, lamp: 1, camera: 1, sun: 1 } },
-  { trek: 'ebc', title: 'Day 8 · Gorak Shep', days: 6, rules: ALL, max: 6, nb: [3, 7], m: { water: 2, food: 2, stove: 1, bag: 1, jacket: 1, axe: 1, med: 1, lamp: 1, camera: 1, boots: 1 } }
+  { trek: 'inca', title: 'Day 1 · The trailhead', days: 4, rules: ['weight'], max: 40, m: { water: 2, food: 1, rain: 1, camera: 1, med: 1, sun: 1 } },
+  { trek: 'inca', title: 'Day 2 · Dead Woman’s Pass', days: 4, rules: ['weight', 'food'], max: 24, m: { water: 2, food: 2, rain: 1, camera: 1, med: 1, bug: 1 } },
+  { trek: 'inca', title: 'Day 3 · Phuyupatamarca camp', days: 4, rules: ['weight', 'food', 'wet'], max: 12, m: { water: 2, food: 2, tent: 1, bag: 1, rain: 1, camera: 1, bug: 1 } },
+  { trek: 'tmb', title: 'Stage 1 · Les Houches', days: 5, rules: ['weight', 'food', 'wet'], max: 8, m: { water: 2, food: 2, jacket: 1, rain: 1, camera: 1, lamp: 1, med: 1 } },
+  { trek: 'tmb', title: 'Stage 4 · Col du Bonhomme', days: 5, rules: ['weight', 'food', 'wet'], max: 4, m: { water: 2, food: 2, jacket: 1, rain: 1, camera: 1, lamp: 1, med: 1, bug: 1, sun: 1 } },
+  { trek: 'paine', title: 'Day 2 · French Valley', days: 6, rules: ALL, max: 3, m: { water: 2, food: 2, stove: 1, tent: 1, bag: 1, jacket: 1, rain: 1, med: 1 } },
+  { trek: 'paine', title: 'Day 4 · Grey Glacier camp', days: 6, rules: ALL, max: 2, m: { water: 2, food: 3, stove: 1, tent: 1, bag: 1, jacket: 1, rain: 1, lamp: 1, camera: 1 } },
+  { trek: 'kili', title: 'Day 3 · Barranco Wall', days: 6, rules: ALL, max: 2, m: { water: 2, food: 2, bag: 1, jacket: 1, rain: 1, med: 1, lamp: 1, camera: 1, boots: 1, sun: 1 } },
+  { trek: 'kili', title: 'Day 5 · Karanga camp', days: 6, rules: ALL, max: 1, m: { water: 2, food: 3, bag: 1, jacket: 1, rain: 1, med: 1, lamp: 1, boots: 1, bug: 1, camera: 1 } },
+  { trek: 'ebc', title: 'Day 3 · Namche Bazaar', days: 6, rules: ALL, max: 1, m: { water: 2, food: 2, bag: 1, jacket: 1, axe: 1, med: 1, lamp: 1, camera: 1, sun: 1 } },
+  { trek: 'ebc', title: 'Day 8 · Gorak Shep', days: 6, rules: ALL, max: 1, m: { water: 2, food: 2, stove: 1, bag: 1, jacket: 1, axe: 1, med: 1, lamp: 1, camera: 1, boots: 1 } }
 ];
 
 const out = [];
 S.forEach((s, li) => {
-  const cells = Object.entries(s.m).reduce((a, [id, n]) => a + n * ITEMS[id].size, 0);
   let best = null;
-  for (let t = 0; t < 30000 && !best; t++) {
-    const hi = Math.min(R * C - 1 - cells, 11), lo = Math.min(3, hi);
-    const k = lo + Math.floor(rnd() * (hi - lo + 1));
-    if (cells + k > R * C - 1) continue;
-    const blocked = new Set();
-    while (blocked.size < k) blocked.add(Math.floor(rnd() * R * C));
-    const res = solve(s.m, blocked, s.rules, s.max + 1);
-    if (res.count >= 1 && res.count <= s.max && !res.truncated) best = { blocked: [...blocked].sort((a, b) => a - b), count: res.count, first: res.first };
+  for (let t = 0; t < 120; t++) {
+    const blocked = new Set(); const nb = Math.floor(rnd() * 4);
+    while (blocked.size < nb) blocked.add(Math.floor(rnd() * R * C));
+    const base = solve(s.m, blocked, s.rules, 1, [], true);
+    if (!base.count) continue;
+    const sol = itemsOf(base.first);
+    // add clues one at a time, always the one that cuts the solution count the most
+    let fixed = [], left = sol.slice(), cnt = solve(s.m, blocked, s.rules, 400, fixed).count;
+    while (cnt > s.max && left.length && (!best || fixed.length < best.fixed.length)) {
+      let pick = null;
+      for (const cand of left) {
+        const c = solve(s.m, blocked, s.rules, 400, [...fixed, cand]).count;
+        if (!pick || c < pick.c || (c === pick.c && rnd() < .3)) pick = { cand, c };
+      }
+      fixed.push(pick.cand); left = left.filter(x => x !== pick.cand); cnt = pick.c;
+    }
+    if (cnt <= s.max && cnt >= 1 && (!best || fixed.length < best.fixed.length)) best = { blocked, fixed, count: cnt, sol };
   }
-  if (!best) { console.error('NO LEVEL for', li, s.title, 'cells', cells); process.exit(1); }
-  console.log(li + 1, s.title, '| cells', cells, '| blocked', best.blocked.length, '| solutions', best.count);
+  if (!best) { console.error('NO LEVEL', li + 1, s.title); process.exit(1); }
+  const total = Object.values(s.m).reduce((a, b) => a + b, 0);
+  console.log(li + 1, s.title.padEnd(32), '| items', total, '| clues', best.fixed.length, '| jammed', best.blocked.size, '| solutions', best.count);
   out.push({ trek: s.trek, title: s.title, days: s.days, rules: s.rules, manifest: s.m,
-    blocked: best.blocked.map(i => [Math.floor(i / C), i % C]), solutions: best.count,
-    solution: (() => { const g = {}; best.first.forEach((c, i) => { if (c) (g[c.i] = g[c.i] || { id: c.id, cells: [] }).cells.push([Math.floor(i / C), i % C]); }); return Object.values(g); })() });
+    blocked: [...best.blocked].sort((a, b) => a - b).map(i => [Math.floor(i / C), i % C]),
+    fixed: best.fixed, solutions: best.count, solution: best.sol });
 });
 fs.writeFileSync(path.join(__dirname, '..', 'levels.js'),
-  '/* Generated by tools/gen.js. Do not edit by hand. */\nconst LEVELS = ' + JSON.stringify(out, null, 1) + ';\nif (typeof module !== \'undefined\') module.exports = LEVELS;\n');
+  '/* Generated by tools/gen.js. Do not edit by hand. */\nconst LEVELS = ' + JSON.stringify(out) + ';\nif (typeof module !== \'undefined\') module.exports = LEVELS;\n');
 console.log('wrote levels.js');

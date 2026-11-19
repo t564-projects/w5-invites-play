@@ -65,19 +65,27 @@ function occupancy() {
   placed.forEach((p, i) => cellsOf(p.id, p.r, p.c, p.rot).forEach(([r, c]) => g.set(r * C + c, i)));
   return g;
 }
-function check(id, r, c, rt) {
-  const cells = cellsOf(id, r, c, rt), blocked = blockedSet(), occ = occupancy(), it = ITEMS[id], rules = lvl().rules;
-  for (const [rr, cc] of cells) if (rr < 0 || cc < 0 || rr >= R || cc >= C) return { ok: false, why: `The ${it.name.toLowerCase()} doesn’t fit there.` };
+function check(id, r, c, rt) { // can the item physically go here? (rule breaks are allowed but flagged red)
+  const cells = cellsOf(id, r, c, rt), blocked = blockedSet(), occ = occupancy(), it = ITEMS[id];
+  for (const [rr, cc] of cells) if (rr < 0 || cc < 0 || rr >= R || cc >= C) return { ok: false, why: `The ${it.name.toLowerCase()} doesn\u2019t fit there.` };
   for (const [rr, cc] of cells) {
     if (blocked.has(rr * C + cc)) return { ok: false, why: 'That spot is jammed shut. Pick another.' };
     if (occ.has(rr * C + cc)) return { ok: false, why: 'Something is already there.' };
-    if (!it.zones.includes(ZONES[rr][cc])) return { ok: false, why: `${it.e} ${it.name} doesn’t go in the ${ZONE_NAMES[ZONES[rr][cc]].toLowerCase()}.` };
-    if (rules.includes('weight')) {
-      if (it.weight === 'H' && rr < 2) return { ok: false, why: `${it.e} ${it.name} is heavy. Keep it in the bottom three rows.` };
-      if (it.weight === 'L' && rr > 2) return { ok: false, why: `${it.e} ${it.name} is light. Keep it out of the bottom two rows.` };
-    }
   }
   return { ok: true, cells };
+}
+// per-item problems: wrong pocket, or heavy/light in the wrong rows
+function itemIssues() {
+  const out = [], rules = lvl().rules;
+  placed.forEach((p, i) => {
+    const it = ITEMS[p.id];
+    for (const [rr, cc] of cellsOf(p.id, p.r, p.c, p.rot)) {
+      if (!it.zones.includes(ZONES[rr][cc])) { out.push({ i, msg: `${it.e} ${it.name} doesn\u2019t go in the ${ZONE_NAMES[ZONES[rr][cc]].toLowerCase()}.` }); break; }
+      if (rules.includes('weight') && it.weight === 'H' && rr < 2) { out.push({ i, msg: `${it.e} ${it.name} is heavy. Keep it in the bottom three rows.` }); break; }
+      if (rules.includes('weight') && it.weight === 'L' && rr > 2) { out.push({ i, msg: `${it.e} ${it.name} is light. Keep it out of the bottom two rows.` }); break; }
+    }
+  });
+  return out;
 }
 function conflicts() {
   const out = [], occ = occupancy(), rules = lvl().rules, seen = new Set();
@@ -91,29 +99,25 @@ function conflicts() {
   }));
   return out;
 }
-function legalCells() {
-  const out = new Set(); if (!sel) return out;
-  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
-    const anchors = ITEMS[sel].size === 1 ? [[r, c]] : (rot ? [[r, c], [r - 1, c]] : [[r, c], [r, c - 1]]);
-    if (anchors.some(([ar, ac]) => check(sel, ar, ac, rot).ok)) out.add(r * C + c);
-  }
-  return out;
-}
-
 /* ---------- actions ---------- */
 const snap = () => hist.push(JSON.stringify({ placed, sel, rot }));
 function startLevel(i) {
   lv = i; curTrek = lvl().trek; screen = 'game';
-  placed = []; sel = null; rot = 0; hist = []; actions = 0; hinted = false; won = false; ruleOpen = null;
+  placed = (lvl().fixed || []).map(f => {
+    const r = Math.min(...f.cells.map(x => x[0])), c = Math.min(...f.cells.map(x => x[1]));
+    return { id: f.id, r, c, rot: f.cells.length > 1 && f.cells[0][1] === f.cells[1][1] ? 1 : 0, fixed: true };
+  });
+  sel = null; rot = 0; hist = []; actions = 0; hinted = false; won = false; ruleOpen = null;
   msg = ''; msgKind = '';
   const first = Object.keys(lvl().manifest)[0]; sel = first;
   const dbg = new URLSearchParams(location.search);
   if (dbg.has('solved')) { // debug: pre-place the stored solution (all of it, or the first N items)
     const n = dbg.get('solved') ? +dbg.get('solved') : 99;
-    placed = lvl().solution.slice(0, n).map(s => {
+    const fk = new Set((lvl().fixed || []).map(f => f.id + JSON.stringify(f.cells)));
+    placed = placed.concat(lvl().solution.filter(s => !fk.has(s.id + JSON.stringify(s.cells))).slice(0, n).map(s => {
       const cells = s.cells, r = Math.min(...cells.map(x => x[0])), c = Math.min(...cells.map(x => x[1]));
       return { id: s.id, r, c, rot: cells.length > 1 && cells[0][1] === cells[1][1] ? 1 : 0 };
-    });
+    }));
     sel = Object.keys(lvl().manifest).find(k => remaining(k) > 0) || null;
   }
   window.scrollTo(0, 0);
@@ -146,17 +150,19 @@ function tapCell(r, c) {
 }
 function tapGear(i) {
   if (won) return;
+  if (placed[i].fixed) { setMsg('📌 That one is already strapped in. It is a clue: work around it.', 'hint'); SND.tap(); render(); return; }
   snap(); const p = placed.splice(i, 1)[0]; actions++; sel = p.id; rot = p.rot; setMsg(''); SND.lift(); render();
 }
 function afterPlace() {
-  const cf = conflicts();
-  if (cf.length) {
+  const cf = conflicts(), iss = itemIssues();
+  if (iss.length) { setMsg(iss[0].msg); SND.bad(); }
+  else if (cf.length) {
     const x = cf[0], a = ITEMS[placed[x.a].id], b = ITEMS[placed[x.b].id];
     setMsg(`${a.e} ${a.name} is touching ${b.e} ${b.name}. ${RULES[x.rule].text}`); SND.bad();
   } else setMsg('');
   const left = Object.keys(lvl().manifest).reduce((n, k) => n + remaining(k), 0);
-  if (!left && !cf.length) return win();
-  if (!left && cf.length) setMsg('Everything is in, but the red items break a rule. Move them.');
+  if (!left && !cf.length && !iss.length) return win();
+  if (!left) setMsg('Everything is in, but the red items break a rule. ' + (msg ? msg : 'Move them.'));
   render();
 }
 function undo() { if (!hist.length || won) return; const s = JSON.parse(hist.pop()); placed = s.placed; sel = s.sel; rot = s.rot; setMsg(''); SND.lift(); render(); }
@@ -174,7 +180,7 @@ function toggleMute() { save.mute = !save.mute; persist(); if (!save.mute) SND.t
 
 function win() {
   won = true; sel = null; render();
-  const n = Object.keys(lvl().manifest).length, par = n + 4;
+  const n = placed.filter(p => !p.fixed).length, par = n + 4;
   let stars = actions <= par ? 3 : actions <= par + 10 ? 2 : 1; if (hinted) stars = Math.max(1, stars - 1);
   save.stars[lv] = Math.max(save.stars[lv] || 0, stars);
   save.unlocked = Math.max(save.unlocked, Math.min(lv + 1, LEVELS.length - 1)); persist();
@@ -194,8 +200,9 @@ function confetti() {
 function render() { screen === 'home' ? renderHome() : screen === 'trek' ? renderTrek() : renderGame(); }
 
 function packHTML() {
-  const L = lvl(), blocked = blockedSet(), legal = legalCells(), bad = new Set();
+  const L = lvl(), blocked = blockedSet(), bad = new Set();
   conflicts().forEach(x => { bad.add(x.a); bad.add(x.b); });
+  itemIssues().forEach(x => bad.add(x.i));
   const seenZone = new Set(); let cells = '';
   for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
     const z = ZONES[r][c], cls = ['cell', 'z-' + z];
@@ -203,17 +210,20 @@ function packHTML() {
     if (r === R - 1 || ZONES[r + 1][c] !== z) cls.push('eb');
     if (c === 0 || ZONES[r][c - 1] !== z) cls.push('el');
     if (c === C - 1 || ZONES[r][c + 1] !== z) cls.push('er');
-    const isB = blocked.has(r * C + c); if (isB) cls.push('blocked'); else if (legal.has(r * C + c)) cls.push('legal');
+    const isB = blocked.has(r * C + c); if (isB) cls.push('blocked');
     let label = ''; if (!seenZone.has(z)) { seenZone.add(z); label = `<span class="zl">${esc(ZONE_NAMES[z].replace(' compartment', '').replace(' pocket', ''))}</span>`; }
     cells += `<div class="${cls.join(' ')}" style="grid-row:${r + 1};grid-column:${c + 1}" onclick="tapCell(${r},${c})">${isB ? '<span class="jam">🔒</span>' : ''}${label}</div>`;
   }
   placed.forEach((p, i) => {
     const cs = cellsOf(p.id, p.r, p.c, p.rot), it = ITEMS[p.id];
-    cells += `<div class="gear ${bad.has(i) ? 'bad' : ''}" style="grid-row:${p.r + 1} / span ${p.rot && it.size === 2 ? 2 : 1};grid-column:${p.c + 1} / span ${!p.rot && it.size === 2 ? 2 : 1};--c:${it.color}" onclick="tapGear(${i})"><span class="ge">${it.e}</span><span class="gn">${esc(it.name)}</span></div>`;
+    cells += `<div class="gear ${bad.has(i) ? 'bad' : ''} ${p.fixed ? 'fixed' : ''}" style="grid-row:${p.r + 1} / span ${p.rot && it.size === 2 ? 2 : 1};grid-column:${p.c + 1} / span ${!p.rot && it.size === 2 ? 2 : 1};--c:${it.color}" onclick="tapGear(${i})"><span class="ge">${it.e}</span><span class="gn">${esc(it.name)}</span>${p.fixed ? '<span class="pin">📌</span>' : ''}</div>`;
   });
   const guide = L.rules.includes('weight') ? '<div class="wguide"><span>▲</span><span style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;letter-spacing:1px">LIGHT ↔ HEAVY</span><span>▼</span></div>' : '';
   return `<div class="packwrap">${guide}<div class="pack"><div class="grid">${cells}</div></div></div>`;
 }
+
+const POCKET = { lid: 'Lid', left: 'Sides', right: 'Sides', main: 'Main', bottom: 'Bottom' };
+const pockets = it => [...new Set(it.zones.map(z => POCKET[z]))].join(' · ');
 
 function renderGame() {
   const L = lvl(), T = TREKS[L.trek], k = trekLevels(L.trek).indexOf(lv);
@@ -223,7 +233,8 @@ function renderGame() {
     const it = ITEMS[id], n = remaining(id);
     return `<button class="tool ${sel === id ? 'sel' : ''} ${n <= 0 ? 'zero' : ''}" style="--c:${it.color}" onclick="pick('${id}')">
       <span class="cnt">${n <= 0 ? '✓' : '×' + n}</span><span class="te">${it.e}</span><span class="tn">${esc(it.name)}</span>
-      <span class="tw">${it.weight === 'H' ? 'heavy' : it.weight === 'L' ? 'light' : 'medium'}${it.size === 2 ? ' · 2 cells' : ''}</span></button>`;
+      <span class="tw">${it.weight === 'H' ? 'heavy' : it.weight === 'L' ? 'light' : 'medium'}${it.size === 2 ? ' · 2 cells' : ''}</span>
+      <span class="tz">${pockets(it)}</span></button>`;
   }).join('');
   const total = ids.reduce((n, id) => n + L.manifest[id], 0), done = total - ids.reduce((n, id) => n + remaining(id), 0);
   const chips = L.rules.map(r => `<button class="rchip ${ruleOpen === r ? 'on' : ''}" onclick="toggleRule('${r}')">${RULES[r].icon} ${RULES[r].title}</button>`).join('');
@@ -291,8 +302,8 @@ function showHow() {
   overlay(`<div class="pad"><h2>How to play</h2>
     <ol class="how">
       <li><b>Pack what the trek needs.</b> The tray shows exactly how many of each item you must bring.</li>
-      <li><b>Pick an item, then tap a spot.</b> Each item only fits certain pockets. Dashed spots show where it can go. Tap packed gear to take it out.</li>
-      <li><b>Follow the rules.</b> Heavy things low, light things high. Food away from smelly gear. Wet away from electronics and down. Sharp and hot away from soft. Items breaking a rule turn red.</li>
+      <li><b>Pick an item, then tap a spot.</b> Each item only fits certain pockets, listed on its tile. Tap packed gear to take it out. Gear with a 📌 is already locked in place: it is a clue.</li>
+      <li><b>Follow the rules.</b> Heavy things low, light things high. Food away from smelly gear. Wet away from electronics and down. Sharp and hot away from soft. Anything breaking a rule turns red, and the message says why.</li>
       <li><b>Jammed spots</b> (🔒) can’t be used.</li>
     </ol><button class="btn primary" style="width:100%" onclick="closeOverlay()">Let’s pack</button></div>`);
 }

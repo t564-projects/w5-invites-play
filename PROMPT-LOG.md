@@ -57,6 +57,16 @@ Rebuilt the game as a placement puzzle in the Meowdoku style. A backpack grid wi
 >
 > (sent while I was working) but commit before actually doing new changes
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 20,055 output, 22,668 new input, 1,573,093 cached input, over 8 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 21,700 output, 25,290 new input, 1,989,852 cached input, over 10 model calls.
 
 The dashed highlight showed every legal spot for the picked item, and the jammed cells left only one or two choices, so the game told you where to put everything. Checked first that the version you were playing was already committed (`26a39f6`, `9353703`) and that only the new generator work was uncommitted. Then rebuilt the challenge: levels now start with a few locked clue items (📌) that the solver picks as the fewest that leave a small number of solutions (30 in stage 1, 1 in the last three), the highlight is gone, and rule breaks can be placed but turn red with the reason. The tray now lists the pockets each item fits, as information rather than the answer. Replayed all 11 solutions through the real tap logic (all win) and checked that water in the lid is flagged red and does not win. Not play-tested by hand, so the difficulty is untested. Commit `f462178` (the log itself is in the next commit).
+
+## 7. Make it like real Meowdoku
+
+> it still kind of stupid, easy and not fun at all. I love meowdoku and this one sucks
+
+Answers to the questions I asked after looking the game up: "cant we have meowdoku rules adapted to the hike back rules (in matter of size, where, what can touch what, etc)"; backpack pockets and gear as the theme; features: ✕ marking and notes, timer and best times, real trek photos and facts as rewards (no lives).
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 49,936 output, 57,956 new input, 3,829,414 cached input, over 16 model calls (measured before the turn finished, so slightly low).
+
+I had misunderstood Meowdoku: I had built a packing puzzle. Searched the web and found the real rules: coloured regions, one cat per region, row and column, no touching even diagonally, one solution reached by logic. Rebuilt the game on that: the backpack is an N×N grid of coloured pockets, each pocket holds one specific gear item, one per pocket, row and column, incompatible gear can't touch even diagonally, and heavy gear goes low and light gear high. The grid grows with the trek (5×5 to 8×8). The level generator (`tools/gen.js`) keeps only puzzles with exactly one solution that a logic-only solver can reach, and tags each with a difficulty tier. Features: tap to ✕ or place, timer with best times, hints (+30 s), an auto-✕ assist, and the trek photos, facts and credits on the win screen. Replayed all 14 solutions through the real tap handler (all win) and checked that a wrong move is flagged red and does not win. Screenshots of the 6×6 and 8×8 boards found and fixed an overflow bug. Not play-tested by hand, so the difficulty is untested. Commit `ad2d8be` (the log itself is in the next commit).

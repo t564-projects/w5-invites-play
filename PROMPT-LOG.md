@@ -120,6 +120,14 @@ The previous screen was a table and a grid of squares with four rules at once. R
 >
 > continue
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 82,809 output, 479,536 new input, 5,787,896 cached input, over 15 model calls (the new input is large because I looked at the new photos; measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 85,136 output, 480,636 new input, 6,189,015 cached input, over 17 model calls (the new input is large because I looked at the new photos).
 
 Kept the same rules as that style of game: very short microgames with a big instruction, one quick action, a funny death, three lives, and a speed that keeps rising. Before building, committed everything that existed (`62214fd`, which also holds a third photo per trek downloaded from Wikimedia Commons, so each stage unlocks its own photo). Then rebuilt the game as Trail Oops!: 14 hiking microgames (hang the food from the bear, balance at the cliff edge, trail mix vs mystery berries, follow the right trail marker, sunscreen, back away slowly from a bear, dodge lightning, yaks on the uphill side, pole pole rhythm for altitude, crouch in a gust, put out the fire, treat the water, dress for the rain, turn around on time), each with a real ranger tip on its death card. Five treks with 3 stages each (8 microgames, 3 lives, faster each stage), where each survived stage unlocks a real photo and fun fact into an album and also becomes a free background. Coins from each microgame buy hiker outfits and backgrounds. The earlier itinerary puzzle is removed (it is in the git history). Tested in headless Chrome: every microgame survives when the task is done and dies when it is not (this caught two timing bugs in the yak and pole pole games), a perfect stage unlocks the photo, and a stage played by doing nothing ends in game over; looked at screenshots of the home, trek, shop, a microgame and a death card. Not play-tested by hand, so the difficulty, feel and sounds are untested. Commit `829b5d7` (the log itself is in the next commit).
+
+## 13. Deploy locally, push, clearer instructions
+
+> lets deploy it on local host and push, just improve a bit the instructions for each game
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 4,874 output, 6,950 new input, 2,429,962 cached input, over 5 model calls (measured before the turn finished, so slightly low).
+
+Gave every microgame a one-line "how to" (for example "Drag the backpack up onto the dashed branch before the bear arrives"), shown under the big title in the intro and kept under the timer while you play, with a longer intro for the first stage. Re-ran the tests (all pass) and checked screenshots of the intro and a game. Served the folder with `python3 -m http.server 8000` and pushed `main` to `origin` (`t564-projects/w5-invites-play`, private). Commit `56a28c2`; this log entry was pushed with the next commit.

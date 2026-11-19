@@ -127,3 +127,6 @@ a{color:inherit}
 @keyframes rise{from{transform:translateY(28px);opacity:0}}
 .conf{position:fixed;top:-24px;font-size:22px;z-index:20;pointer-events:none;animation:fall 2.6s ease-in forwards}
 @keyframes fall{to{transform:translateY(112vh) rotate(540deg)}}
+
+.say .how{display:block;font-size:16px;line-height:1.25;font-weight:800;margin-top:10px;text-shadow:0 2px 0 rgba(74,63,107,.55);max-width:300px}
+.howline{text-align:center;font-weight:800;font-size:14px;color:var(--ink);margin-top:12px;min-height:20px;line-height:1.3}

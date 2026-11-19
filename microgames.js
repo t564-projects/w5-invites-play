@@ -1,6 +1,7 @@
 /* Trail Oops!: the microgames. Each one is a few seconds, one action, and a funny (and educational) way to die.
  *
- * def(id, { title, time, survive, death:{icon,name}, tip, make(c) })
+ * def(id, { title, how, time, survive, death:{icon,name}, tip, make(c) })
+ *   how     one short line that tells you exactly what to do (shown under the title)
  *   time    seconds at speed 1 (it shrinks as the game speeds up)
  *   survive true = you win by lasting until the time is up; otherwise you win by doing the task
  *   make(c) builds the scene in the 360 x 360 box and returns { solve() } (solve is used by the tests)
@@ -35,23 +36,23 @@ function pickGame(scene, options) {
   };
 }
 
-def('water', { title: 'Treat the water!', time: 3.4, death: { icon: '🤢', name: 'Drank the pond water' },
+def('water', { title: 'Treat the water!', how: 'Tap a safe way to treat the pond water.', time: 3.4, death: { icon: '🤢', name: 'Drank the pond water' },
   tip: 'Clear water can still carry germs. Filter, purify or boil water from streams and ponds before you drink it.',
   make: pickGame(c => { c.E('left:80px;top:16px;font-size:44px;opacity:.95', '🐸'); c.E('left:20px;top:46px;width:320px;height:22px;border-radius:99px;background:#8aa86a;opacity:.7'); },
     [{ e: '🧪', t: 'Filter it', ok: true }, { e: '🔥', t: 'Boil it', ok: true }, { e: '🥤', t: 'Drink it raw', why: 'raw' }, { e: '🐸', t: 'Ask the frog', why: 'frog' }]) });
 
-def('jacket', { title: 'Dress for the rain!', time: 3.4, death: { icon: '🥶', name: 'Wore cotton in the rain' },
+def('jacket', { title: 'Dress for the rain!', how: 'Tap the right gear for the rain.', time: 3.4, death: { icon: '🥶', name: 'Wore cotton in the rain' },
   tip: 'Cotton stays wet and chills you. Wear a waterproof shell over wool or synthetic layers.',
   make: pickGame(c => { c.E('left:0;top:0;width:360px;height:360px;font-size:20px;line-height:1.1;opacity:.55;overflow:hidden;animation:rain .5s linear infinite', '💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧<br>&nbsp;&nbsp;💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧 &nbsp;&nbsp; 💧'); c.E('left:140px;top:6px;font-size:50px', '🌧️'); },
     [{ e: '🧥', t: 'Rain shell', ok: true }, { e: '👕', t: 'Cotton tee', why: 'cotton' }, { e: '🩳', t: 'Shorts', why: 'shorts' }, { e: '🕶️', t: 'Sunglasses', why: 'shades' }]) });
 
-def('turnaround', { title: 'Turn around time!', time: 3.4, death: { icon: '🌙', name: 'Got caught on the mountain after dark' },
+def('turnaround', { title: 'Turn around time!', how: 'It\'s past your turnaround time. Tap what you should do.', time: 3.4, death: { icon: '🌙', name: 'Got caught on the mountain after dark' },
   tip: 'Pick a turnaround time before you start and stick to it, even when the summit looks close.',
   make: pickGame(c => { c.E('left:110px;top:10px;font-size:52px', '⛰️'); c.E('left:218px;top:6px;font-size:22px;font-weight:900;color:#fff;background:#d94a4a;border-radius:12px;padding:4px 10px', '⏰ 2:20 PM'); c.E('left:218px;top:40px;font-size:12px;font-weight:900;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5)', 'Turnaround: 2:00 PM'); },
     [{ e: '🏁', t: 'Summit! Just 5 more minutes', why: 'summit' }, { e: '↩️', t: 'Turn back now', ok: true }, { e: '📸', t: 'Selfie first', why: 'selfie' }, { e: '☕', t: 'Tea break', why: 'tea' }]) });
 
 /* ---------- bear bag (drag) ---------- */
-def('bearbag', { title: 'Hang the food!', time: 4.4, death: { icon: '🐻', name: 'Fed the bear' },
+def('bearbag', { title: 'Hang the food!', how: 'Drag the backpack up onto the dashed branch before the bear arrives.', time: 4.4, death: { icon: '🐻', name: 'Fed the bear' },
   tip: 'Store food in a bear canister or hang it high, away from your tent. Bears can smell food from far away.',
   make(c) {
     c.E('left:244px;top:20px;font-size:98px;line-height:1', '🌳');
@@ -70,7 +71,7 @@ def('bearbag', { title: 'Hang the food!', time: 4.4, death: { icon: '🐻', name
   } });
 
 /* ---------- balance on the edge (tap left / right) ---------- */
-def('balance', { title: 'Don’t fall off the edge!', time: 4.8, survive: true, death: { icon: '🪂', name: 'Fell off the cliff for a selfie' },
+def('balance', { title: 'Don’t fall off the edge!', how: 'Tap the left or right side of the screen to push yourself back upright.', time: 4.8, survive: true, death: { icon: '🪂', name: 'Fell off the cliff for a selfie' },
   tip: 'Stay well back from cliff edges: they can be loose, wet or windy. No selfie is worth it.',
   make(c) {
     c.E('left:0;top:250px;width:206px;height:120px;background:#c8a97e;border-radius:0 12px 0 0');
@@ -93,7 +94,7 @@ def('balance', { title: 'Don’t fall off the edge!', time: 4.8, survive: true, 
   } });
 
 /* ---------- eat only trail mix (go / no-go) ---------- */
-def('berries', { title: 'Only eat trail mix!', time: 5.2, death: { icon: '🤮', name: 'Ate a mystery mushroom' },
+def('berries', { title: 'Only eat trail mix!', how: 'Tap 3 trail mixes 🥜. Do NOT tap anything else!', time: 5.2, death: { icon: '🤮', name: 'Ate a mystery mushroom' },
   tip: 'Never eat wild berries, plants or mushrooms unless you are 100% sure what they are.',
   make(c) {
     let got = 0, need = 3, t = 0, gap = 0; const pips = c.E('left:0;top:6px;width:360px;text-align:center;font-size:22px;letter-spacing:6px', '🥜🥜🥜'.replace(/🥜/g, '⚪'));
@@ -108,7 +109,7 @@ def('berries', { title: 'Only eat trail mix!', time: 5.2, death: { icon: '🤮',
   } });
 
 /* ---------- follow the right trail marker ---------- */
-def('lost', { title: 'Follow the trail markers!', time: 5.6, death: { icon: '🧭', name: 'Got hopelessly lost' },
+def('lost', { title: 'Follow the trail markers!', how: 'Tap the trail that has the same colour marker as shown. 3 forks.', time: 5.6, death: { icon: '🧭', name: 'Got hopelessly lost' },
   tip: 'Stay on marked trails. If you think you are lost, stop, stay calm and retrace your steps.',
   make(c) {
     const COL = [['🟦', 'blue'], ['🟥', 'red'], ['🟩', 'green'], ['🟨', 'yellow']];
@@ -130,7 +131,7 @@ def('lost', { title: 'Follow the trail markers!', time: 5.6, death: { icon: '�
   } });
 
 /* ---------- sunscreen (scrub) ---------- */
-def('sunscreen', { title: 'Put on sunscreen!', time: 4.6, death: { icon: '🦞', name: 'Turned into a lobster' },
+def('sunscreen', { title: 'Put on sunscreen!', how: 'Rub your finger over all 5 dotted spots on the face.', time: 4.6, death: { icon: '🦞', name: 'Turned into a lobster' },
   tip: 'The sun is much stronger at altitude. Use sunscreen, sunglasses and a hat, even when it is cloudy.',
   make(c) {
     const face = c.E('left:70px;top:50px;width:220px;height:240px;border-radius:50%;background:#ffd9b8;box-shadow:inset 0 -8px 0 rgba(0,0,0,.08)');
@@ -148,7 +149,7 @@ def('sunscreen', { title: 'Put on sunscreen!', time: 4.6, death: { icon: '🦞',
   } });
 
 /* ---------- back away slowly (rhythm) ---------- */
-def('backaway', { title: 'Back away slowly!', time: 5.2, survive: true, death: { icon: '🐻', name: 'Ran from a bear' },
+def('backaway', { title: 'Back away slowly!', how: 'Tap to step back each time the bear steps closer. Not too fast, no spamming!', time: 5.2, survive: true, death: { icon: '🐻', name: 'Ran from a bear' },
   tip: 'Stay about 25 m from wildlife and 100 m from bears. If one approaches, back away slowly. Never run.',
   make(c) {
     let d = 3.2, step = 0, last = -9, now = 0, dead = false, auto = false, autoT = .3;
@@ -167,7 +168,7 @@ def('backaway', { title: 'Back away slowly!', time: 5.2, survive: true, death: {
   } });
 
 /* ---------- lightning (dodge) ---------- */
-def('lightning', { title: 'Dodge the lightning!', time: 5.4, survive: true, death: { icon: '⚡', name: 'Struck by lightning on the ridge' },
+def('lightning', { title: 'Dodge the lightning!', how: 'Tap a lane to move there. Stay out of the ⚠️ lanes!', time: 5.4, survive: true, death: { icon: '⚡', name: 'Struck by lightning on the ridge' },
   tip: 'In a thunderstorm get off ridges and summits and away from lone tall trees. Lightning strikes the highest point.',
   make(c) {
     c.E('left:0;top:0;width:360px;height:360px;background:rgba(40,30,80,.35)'); c.E('left:20px;top:8px;font-size:54px', '⛈️'); c.E('left:240px;top:20px;font-size:46px', '🌩️');
@@ -190,7 +191,7 @@ def('lightning', { title: 'Dodge the lightning!', time: 5.4, survive: true, deat
   } });
 
 /* ---------- yaks: get to the uphill side (drag) ---------- */
-def('yak', { title: 'Yaks coming! Uphill side!', time: 3.8, death: { icon: '🐂', name: 'Bumped off the trail by a yak' },
+def('yak', { title: 'Yaks coming! Uphill side!', how: 'Drag the hiker up to the mountain side before the yaks arrive.', time: 3.8, death: { icon: '🐂', name: 'Bumped off the trail by a yak' },
   tip: 'On mountain trails, step to the uphill side when yaks or mules pass, so they cannot push you off the edge.',
   make(c) {
     c.E('left:0;top:0;width:360px;height:150px;background:linear-gradient(#b9a98f,#a39279);border-radius:0 0 40px 40px'); c.E('left:20px;top:40px;font-size:60px', '⛰️'); c.E('left:240px;top:60px;font-size:40px', '🪨');
@@ -208,7 +209,7 @@ def('yak', { title: 'Yaks coming! Uphill side!', time: 3.8, death: { icon: '🐂
   } });
 
 /* ---------- pole pole: tap on the slow beat (rhythm) ---------- */
-def('polepole', { title: 'Pole pole! Go slowly!', time: 5.6, fixed: true, death: { icon: '🤒', name: 'Climbed too fast' },
+def('polepole', { title: 'Pole pole! Go slowly!', how: 'Tap when the ring fits the circle. It is a slow beat!', time: 5.6, fixed: true, death: { icon: '🤒', name: 'Climbed too fast' },
   tip: '“Pole pole” means “slowly slowly” in Swahili. Climbing too fast is the main cause of altitude sickness.',
   make(c) {
     c.E('left:80px;top:80px;width:200px;height:200px;border-radius:50%;border:6px solid #fff;background:rgba(255,255,255,.25)');
@@ -225,7 +226,7 @@ def('polepole', { title: 'Pole pole! Go slowly!', time: 5.6, fixed: true, death:
   } });
 
 /* ---------- gust: crouch and hold ---------- */
-def('gust', { title: 'Wind! Hold on!', time: 5.4, survive: true, death: { icon: '🪁', name: 'Blown away by the wind' },
+def('gust', { title: 'Wind! Hold on!', how: 'Press and HOLD the screen while the wind blows.', time: 5.4, survive: true, death: { icon: '🪁', name: 'Blown away by the wind' },
   tip: 'In strong wind, crouch low, keep your weight centred and secure loose gear. Patagonian gusts can knock you off your feet.',
   make(c) {
     c.E('left:20px;top:20px;font-size:50px;opacity:.9', '☁️'); c.E('left:240px;top:60px;font-size:40px;opacity:.8', '☁️');
@@ -244,7 +245,7 @@ def('gust', { title: 'Wind! Hold on!', time: 5.4, survive: true, death: { icon: 
   } });
 
 /* ---------- put out the fire (tap fast) ---------- */
-def('fire', { title: 'Put out the fire!', time: 4.2, death: { icon: '🔥', name: 'Started a forest fire' },
+def('fire', { title: 'Put out the fire!', how: 'Tap fast to pour water until the flame bar is empty.', time: 4.2, death: { icon: '🔥', name: 'Started a forest fire' },
   tip: 'Drown your campfire with water, stir the ashes and feel for heat. Embers left behind can start wildfires.',
   make(c) {
     c.E('left:20px;top:200px', c.hiker('scared', 54)); c.E('left:260px;top:90px;font-size:80px;line-height:1', '🌲'); c.E('left:210px;top:150px;font-size:70px;line-height:1', '🌲');

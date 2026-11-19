@@ -116,8 +116,8 @@ async function playRound(trek, stageIdx) {
     R.idx = i; hud();
     const id = R.list[i], def = MICRO[id], sp = base * (1 + .035 * i);
     resetBox(document.getElementById('inner'));
-    say(`${i === 4 ? '<small>FASTER!</small>' : ''}${esc(def.title)}`, 'title'); SND.tap(); await sleep(i === 0 ? 1000 : 800); if (my !== runId) return;
-    say('');
+    say(`${i === 4 ? '<small>FASTER!</small>' : ''}${esc(def.title)}<span class="how">${esc(def.how)}</span>`, 'title'); SND.tap(); await sleep(stageIdx === 0 && i < 4 ? 2000 : 1500); if (my !== runId) return;
+    say(''); const hl = document.getElementById('howline'); if (hl) hl.textContent = def.how;
     const res = await runMicro(id, sp); if (my !== runId) return;
     if (res.won) { R.res[i] = 'w'; save.coins++; R.earned++; persist(); SND.ok(); say('✅ Nice!', 'good'); hud(); await sleep(450); say(''); }
     else {
@@ -183,7 +183,7 @@ function showPhoto(trek, i) { const p = TREKS[trek].photos[i]; overlay(`<div cla
 function renderPlay() {
   $app.innerHTML = `<div class="topbar"><button class="ib" onclick="quitRound()">✕</button><div id="hud" class="hud"></div></div>
     <div class="stagewrap"><div class="stage" id="stage"><div class="inner" id="inner"></div><div id="say" class="say" style="display:none"></div></div></div>
-    <div class="tbarwrap"><div id="tbar"></div></div>`;
+    <div class="tbarwrap"><div id="tbar"></div></div><div id="howline" class="howline"></div>`;
   resetBox(document.getElementById('inner')); fitStage(); hud();
 }
 function quitRound() { runId++; if (current) current.finish(false, 'quit'); closeOverlay(); goTrek(R ? R.trek : ORDER[0]); }
@@ -226,7 +226,7 @@ function showHow() {
   if (q.has('noanim')) document.head.insertAdjacentHTML('beforeend', '<style>*{animation:none!important}</style>'); // debug: for screenshots
   if (q.has('coins')) save.coins = +q.get('coins');
   if (q.has('unlock')) ORDER.forEach(t => [0, 1, 2].forEach(i => save.won[stageKey(t, i)] = true));
-  if (q.has('micro')) { screen = 'play'; R = { trek: 'inca', stage: 0, lives: 3, idx: 0, list: ['x'], res: [] }; renderPlay(); say(MICRO[q.get('micro')].title, 'title'); setTimeout(() => { say(''); runMicro(q.get('micro'), +(q.get('speed') || 1)); }, 300); return; } // debug: open one microgame
+  if (q.has('micro')) { screen = 'play'; R = { trek: 'inca', stage: 0, lives: 3, idx: 0, list: ['x'], res: [] }; renderPlay(); const md = MICRO[q.get('micro')]; say(`${esc(md.title)}<span class="how">${esc(md.how)}</span>`, 'title'); setTimeout(() => { say(''); document.getElementById('howline').textContent = md.how; runMicro(q.get('micro'), +(q.get('speed') || 1)); }, 300); return; } // debug: open one microgame
   if (q.has('death')) { screen = 'play'; R = { trek: 'inca', stage: 0, lives: 2, idx: 1, list: ['x', 'y'], res: ['w'] }; renderPlay(); save.deaths = 7; deathCard(MICRO[q.get('death')], {}); return; } // debug: show a death card
   if (q.has('shop')) { goShop(); return; }
   if (q.has('trek')) { goTrek(q.get('trek')); return; }

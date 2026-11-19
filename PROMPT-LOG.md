@@ -128,6 +128,14 @@ Kept the same rules as that style of game: very short microgames with a big inst
 
 > lets deploy it on local host and push, just improve a bit the instructions for each game
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 4,874 output, 6,950 new input, 2,429,962 cached input, over 5 model calls (measured before the turn finished, so slightly low).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 5,129 output, 7,380 new input, 2,602,418 cached input, over 6 model calls.
 
 Gave every microgame a one-line "how to" (for example "Drag the backpack up onto the dashed branch before the bear arrives"), shown under the big title in the intro and kept under the timer while you play, with a longer intro for the first stage. Re-ran the tests (all pass) and checked screenshots of the intro and a game. Served the folder with `python3 -m http.server 8000` and pushed `main` to `origin` (`t564-projects/w5-invites-play`, private). Commit `56a28c2`; this log entry was pushed with the next commit.
+
+## 14. The trail-marker microgame doesn't work
+
+> the follow the trail marks microgame is not working
+
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Tokens: 3,530 output, 3,489 new input, 984,191 cached input, over 2 model calls (measured before the turn finished, so slightly low).
+
+Found the bug: the three trails sat inside a container that ignores taps, and children inherit that, so real taps passed straight through them. My test had missed it because it triggered the trails directly instead of tapping where a finger would land. Fixed the trails so they accept taps, and changed the tests to tap the centre of the target through the page (hit-testing). Showed the new test fails on the old code and passes on the fix; the other pick-one games (water, jacket, turnaround) pass the same check. The local server serves the files live, so a browser refresh picks it up. Commit `94987b5`. Not pushed.
